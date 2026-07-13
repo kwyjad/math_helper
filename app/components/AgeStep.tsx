@@ -67,7 +67,7 @@ export default function AgeStep({
     <section className="mx-auto flex max-w-xl flex-col gap-8">
       <div className="flex flex-col gap-3 text-center">
         <h1 className="font-heading text-3xl font-bold">
-          Welcome to Math Helper
+          Welcome to Dijits and Ijits
         </h1>
         <p className="text-text-muted">
           Work through your homework one problem at a time — with a little help.
