@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import type { ChatMessage, Problem } from "../lib/types";
 import type { StoredImage } from "../lib/storage";
+import { prepareImage } from "../lib/image";
 import MathText from "./MathText";
 import { OptionsList, TableBlock } from "./ProblemExtras";
 
@@ -25,6 +26,8 @@ export default function TutorView({
 }) {
   const [input, setInput] = useState("");
   const [answer, setAnswer] = useState("");
+  const [answerFile, setAnswerFile] = useState<File | null>(null);
+  const [answerPreview, setAnswerPreview] = useState<string | null>(null);
   const [showAnswer, setShowAnswer] = useState(false);
   const [imageExpanded, setImageExpanded] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -40,7 +43,8 @@ export default function TutorView({
   async function callTutor(
     nextHistory: ChatMessage[],
     mode: "hint" | "check",
-    submittedAnswer?: string
+    submittedAnswer?: string,
+    answerImage?: { base64: string; mimeType: string }
   ) {
     setLoading(true);
     setError(null);
@@ -63,6 +67,8 @@ export default function TutorView({
           history: nextHistory,
           mode,
           submittedAnswer,
+          answerImage: answerImage?.base64,
+          answerImageMimeType: answerImage?.mimeType,
         }),
       });
       const data = await res.json();
@@ -94,18 +100,48 @@ export default function TutorView({
     void callTutor(nextHistory, "hint");
   }
 
-  function submitAnswer(e: React.FormEvent) {
+  function pickAnswerFile(e: React.ChangeEvent<HTMLInputElement>) {
+    const chosen = e.target.files?.[0] ?? null;
+    setError(null);
+    setAnswerFile(chosen);
+    setAnswerPreview(chosen ? URL.createObjectURL(chosen) : null);
+  }
+
+  function clearAnswerFile() {
+    setAnswerFile(null);
+    setAnswerPreview(null);
+  }
+
+  async function submitAnswer(e: React.FormEvent) {
     e.preventDefault();
     const trimmed = answer.trim();
-    if (!trimmed || loading) return;
+    // Allow submitting a typed answer, an attached photo of their work, or both.
+    if ((!trimmed && !answerFile) || loading) return;
+
+    let prepared: { base64: string; mimeType: string } | undefined;
+    if (answerFile) {
+      try {
+        prepared = await prepareImage(answerFile);
+      } catch {
+        setError("Couldn't read that image. Try another photo.");
+        return;
+      }
+    }
+
+    const label = trimmed
+      ? answerFile
+        ? `My answer: ${trimmed} (with a photo of my work)`
+        : `My answer: ${trimmed}`
+      : "My answer: (a photo of my work)";
     const nextHistory: ChatMessage[] = [
       ...history,
-      { role: "user", content: `My answer: ${trimmed}` },
+      { role: "user", content: label },
     ];
     onHistoryChange(nextHistory);
     setAnswer("");
+    clearAnswerFile();
     setShowAnswer(false);
-    void callTutor(nextHistory, "check", trimmed);
+    void callTutor(nextHistory, "check", trimmed, prepared);
   }
 
   /** Submit a chosen multiple-choice letter (e.g. "C") to be checked. */
@@ -277,7 +313,7 @@ export default function TutorView({
       ) : showAnswer ? (
         <form
           onSubmit={submitAnswer}
-          className="flex flex-col gap-2 rounded-lg border border-accent/40 bg-surface p-4"
+          className="flex flex-col gap-3 rounded-lg border border-accent/40 bg-surface p-4"
         >
           <label htmlFor="answer-input" className="font-medium">
             Submit an answer to check
@@ -295,20 +331,59 @@ export default function TutorView({
             />
             <button
               type="submit"
-              disabled={loading || !answer.trim()}
+              disabled={loading || (!answer.trim() && !answerFile)}
               className="rounded-md bg-accent px-5 py-3 font-medium text-primary-contrast transition-opacity hover:opacity-90 focus:outline-none focus:ring-2 focus:ring-accent/40 disabled:cursor-not-allowed disabled:opacity-50"
             >
               Check it
             </button>
             <button
               type="button"
-              onClick={() => setShowAnswer(false)}
+              onClick={() => {
+                setShowAnswer(false);
+                clearAnswerFile();
+              }}
               disabled={loading}
               className="rounded-md border border-border px-4 py-3 font-medium transition-colors hover:border-primary disabled:opacity-50"
             >
               Cancel
             </button>
           </div>
+
+          {/* Attach a photo/scan of work — for problems that need a drawing or
+              handwritten steps the tutor should look at. */}
+          {answerPreview ? (
+            <div className="flex items-center gap-3">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={answerPreview}
+                alt="Your attached work"
+                className="max-h-24 w-auto rounded-md border border-border"
+              />
+              <button
+                type="button"
+                onClick={clearAnswerFile}
+                disabled={loading}
+                className="text-sm text-error underline underline-offset-2 disabled:opacity-50"
+              >
+                Remove photo
+              </button>
+            </div>
+          ) : (
+            <label className="inline-flex w-fit cursor-pointer items-center gap-2 rounded-md border border-border bg-bg px-4 py-2 text-sm font-medium transition-colors hover:border-accent">
+              <span>📎 Attach a photo of your work</span>
+              <input
+                type="file"
+                accept="image/*"
+                onChange={pickAnswerFile}
+                disabled={loading}
+                className="sr-only"
+              />
+            </label>
+          )}
+          <p className="text-xs text-text-muted">
+            Drawing or working on paper? Snap a photo and the tutor will look at
+            it.
+          </p>
         </form>
       ) : (
         <button

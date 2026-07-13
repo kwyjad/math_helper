@@ -55,4 +55,8 @@ export interface TutorRequest {
   mode: TutorMode;
   /** In check mode: a typed value OR a chosen option letter (e.g. "C"). */
   submittedAnswer?: string;
+  /** In check mode: base64 of a photo of the student's work (e.g. a drawing). */
+  answerImage?: string;
+  /** MIME type of `answerImage`; defaults to image/jpeg server-side. */
+  answerImageMimeType?: string;
 }

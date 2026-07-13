@@ -8,11 +8,16 @@ import MathText from "./MathText";
 // transcribed markdown tables. Used by both the problem list and the tutor view.
 // -----------------------------------------------------------------------------
 
-/** Combine an option's text and math into a single renderable string. */
+/**
+ * Pick a single renderable form for an option. Extraction often fills BOTH
+ * `text` and `latex` with the same content (e.g. "2x + 3y"), so showing both
+ * duplicates it. Prefer the plain text (it keeps readable spacing like
+ * "S 25° E") and fall back to the LaTeX only when there's no text. Any math
+ * delimiters inside the text still render via MathText.
+ */
 function optionContent(option: Option): string {
   const text = option.text?.trim() ?? "";
   const latex = option.latex?.trim() ?? "";
-  if (text && latex) return `${text} ${latex}`;
   return text || latex;
 }
 
