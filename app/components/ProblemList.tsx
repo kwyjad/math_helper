@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import type { Problem } from "../lib/types";
+import type { Companion } from "../lib/companions";
 import MathText from "./MathText";
 import { OptionsList, TableBlock } from "./ProblemExtras";
 
@@ -14,13 +15,19 @@ function hasUnclear(problem: Problem): boolean {
 function ProblemRow({
   problem,
   index,
+  solved,
+  companion,
   onSelect,
   onEdit,
+  onTeach,
 }: {
   problem: Problem;
   index: number;
+  solved: boolean;
+  companion: Companion | null;
   onSelect: () => void;
   onEdit: (next: Problem) => void;
+  onTeach: () => void;
 }) {
   const [editing, setEditing] = useState(false);
   const [text, setText] = useState(problem.text);
@@ -43,11 +50,18 @@ function ProblemRow({
         <span className="text-sm font-semibold text-text-muted">
           {problem.label ? `Problem ${problem.label}` : `Problem ${index + 1}`}
         </span>
-        {hasUnclear(problem) && (
-          <span className="rounded-full bg-error/10 px-2 py-0.5 text-xs font-medium text-error">
-            needs review
-          </span>
-        )}
+        <div className="flex items-center gap-2">
+          {solved && (
+            <span className="rounded-full bg-success/10 px-2 py-0.5 text-xs font-medium text-success">
+              solved
+            </span>
+          )}
+          {hasUnclear(problem) && (
+            <span className="rounded-full bg-error/10 px-2 py-0.5 text-xs font-medium text-error">
+              needs review
+            </span>
+          )}
+        </div>
       </div>
 
       {editing ? (
@@ -132,6 +146,15 @@ function ProblemRow({
             >
               Edit
             </button>
+            {companion && solved && (
+              <button
+                type="button"
+                onClick={onTeach}
+                className="rounded-md border border-accent px-4 py-2 font-medium text-accent transition-colors hover:bg-accent/10 focus:outline-none focus:ring-2 focus:ring-accent/40"
+              >
+                {companion.emoji} {companion.actionVerb} {companion.name}
+              </button>
+            )}
           </div>
         </>
       )}
@@ -142,23 +165,37 @@ function ProblemRow({
 export default function ProblemList({
   problems,
   age,
+  companion,
+  companionLabel,
+  solved,
+  scrapbookCount,
   onSelect,
   onEdit,
+  onTeach,
+  onOpenScrapbook,
   onAddMore,
   onChangeAge,
   onReset,
 }: {
   problems: Problem[];
   age: number | null;
+  companion: Companion | null;
+  /** Short companion label for the "Age · Zeb (change)" affordance. */
+  companionLabel: string;
+  solved: string[];
+  scrapbookCount: number;
   onSelect: (id: string) => void;
   onEdit: (next: Problem) => void;
+  onTeach: (id: string) => void;
+  onOpenScrapbook: () => void;
   onAddMore: () => void;
   onChangeAge: () => void;
   onReset: () => void;
 }) {
+  const solvedSet = new Set(solved);
   return (
     <section className="mx-auto flex max-w-2xl flex-col gap-6">
-      <div className="flex">
+      <div className="flex items-center justify-between gap-2">
         <button
           type="button"
           onClick={onReset}
@@ -166,6 +203,20 @@ export default function ProblemList({
         >
           Start Over
         </button>
+        {companion && (
+          <button
+            type="button"
+            onClick={onOpenScrapbook}
+            className="rounded-md border border-accent px-3 py-2 text-sm font-medium text-accent transition-colors hover:bg-accent/10 focus:outline-none focus:ring-2 focus:ring-accent/40"
+          >
+            📖 Scrapbook
+            {scrapbookCount > 0 && (
+              <span className="ml-1.5 rounded-full bg-accent/15 px-1.5 py-0.5 text-xs">
+                {scrapbookCount}
+              </span>
+            )}
+          </button>
+        )}
       </div>
 
       <header className="flex flex-col gap-2">
@@ -177,7 +228,7 @@ export default function ProblemList({
               onClick={onChangeAge}
               className="text-sm text-text-muted underline underline-offset-2 hover:text-text"
             >
-              Age: {age} (change)
+              Age {age} · {companionLabel} (change)
             </button>
           )}
         </div>
@@ -199,8 +250,11 @@ export default function ProblemList({
               key={problem.id}
               problem={problem}
               index={index}
+              solved={solvedSet.has(problem.id)}
+              companion={companion}
               onSelect={() => onSelect(problem.id)}
               onEdit={onEdit}
+              onTeach={() => onTeach(problem.id)}
             />
           ))}
         </ul>

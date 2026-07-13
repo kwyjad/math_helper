@@ -1,6 +1,8 @@
 "use client";
 
-import type { ChatMessage, Problem } from "./types";
+import { ACCESSORIES } from "./accessories";
+import type { CompanionChoice, CompanionId } from "./companions";
+import type { ChatMessage, Problem, ScrapbookEntry } from "./types";
 
 // -----------------------------------------------------------------------------
 // localStorage persistence. Per-device only — no accounts, no server storage.
@@ -9,9 +11,16 @@ import type { ChatMessage, Problem } from "./types";
 
 const KEYS = {
   age: "mathhelper.age",
+  character: "mathhelper.character",
   problems: "mathhelper.problems",
   chats: "mathhelper.chats",
   image: "mathhelper.image",
+  // --- Teach-back (Teach Zeb) additions ---
+  solved: "mathhelper.solved",
+  teachbacks: "mathhelper.teachbacks",
+  scrapbook: "mathhelper.scrapbook",
+  accessoriesUnlocked: "mathhelper.accessoriesUnlocked",
+  accessorySelected: "mathhelper.accessorySelected",
 } as const;
 
 /** The current page image, stored as a compressed JPEG data URL prefix-less base64. */
@@ -51,6 +60,21 @@ export function loadAge(): number | null {
 
 export function saveAge(age: number): void {
   writeJSON(KEYS.age, age);
+}
+
+/**
+ * The chosen companion. Missing/old data (saved before the character picker
+ * existed) defaults to Zeb so the teach-back feature stays discoverable; the
+ * student can switch to "none" any time from the start screen.
+ */
+export function loadCharacter(): CompanionChoice {
+  const value = readJSON<string>(KEYS.character, "zeb");
+  if (value === "zeb" || value === "loftus" || value === "none") return value;
+  return "zeb";
+}
+
+export function saveCharacter(choice: CompanionChoice): void {
+  writeJSON(KEYS.character, choice);
 }
 
 /**
@@ -135,6 +159,137 @@ export function loadChats(): ChatMap {
 
 export function saveChats(chats: ChatMap): void {
   writeJSON(KEYS.chats, chats);
+}
+
+// -----------------------------------------------------------------------------
+// Teach-back (Teach Zeb) persistence. All reads default missing/old data to
+// empty so the app never crashes on data saved by an earlier version.
+// -----------------------------------------------------------------------------
+
+/** Ids of problems the tutor has confirmed correct (kept as a de-duped list). */
+export function loadSolved(): string[] {
+  const value = readJSON<unknown[]>(KEYS.solved, []);
+  if (!Array.isArray(value)) return [];
+  return value.filter((v): v is string => typeof v === "string");
+}
+
+export function saveSolved(ids: string[]): void {
+  writeJSON(KEYS.solved, Array.from(new Set(ids)));
+}
+
+/**
+ * A persisted teach-back session: the visible chat, meter/done state, and which
+ * companion it belongs to. `progress`/`done` also accept the older
+ * `understanding`/`gotIt` keys saved by the first Teach Zeb version.
+ */
+export interface TeachbackSession {
+  history: ChatMessage[];
+  progress: number;
+  done: boolean;
+  character: CompanionId;
+}
+
+export type TeachbackMap = Record<string, TeachbackSession>;
+
+function normalizeSession(raw: unknown): TeachbackSession {
+  const s = (raw ?? {}) as Record<string, unknown>;
+  const history = Array.isArray(s.history)
+    ? (s.history as unknown[])
+        .filter(
+          (m): m is ChatMessage =>
+            typeof m === "object" &&
+            m !== null &&
+            ((m as { role?: unknown }).role === "user" ||
+              (m as { role?: unknown }).role === "assistant") &&
+            typeof (m as { content?: unknown }).content === "string"
+        )
+        .map((m) => ({ role: m.role, content: m.content }))
+    : [];
+  const rawProgress =
+    typeof s.progress === "number"
+      ? s.progress
+      : typeof s.understanding === "number"
+      ? s.understanding
+      : 0;
+  const progress = Number.isFinite(rawProgress)
+    ? Math.max(0, Math.min(100, Math.round(rawProgress)))
+    : 0;
+  const done = s.done === true || s.gotIt === true;
+  const character: CompanionId = s.character === "loftus" ? "loftus" : "zeb";
+  return { history, progress, done, character };
+}
+
+export function loadTeachbacks(): TeachbackMap {
+  const value = readJSON<Record<string, unknown>>(KEYS.teachbacks, {});
+  if (!value || typeof value !== "object") return {};
+  const out: TeachbackMap = {};
+  for (const [id, raw] of Object.entries(value)) {
+    out[id] = normalizeSession(raw);
+  }
+  return out;
+}
+
+export function saveTeachbacks(map: TeachbackMap): void {
+  writeJSON(KEYS.teachbacks, map);
+}
+
+/** Zeb's Scrapbook — a growing keepsake of everything the student taught him. */
+export function loadScrapbook(): ScrapbookEntry[] {
+  const value = readJSON<unknown[]>(KEYS.scrapbook, []);
+  if (!Array.isArray(value)) return [];
+  return value
+    .map((raw): ScrapbookEntry | null => {
+      const e = (raw ?? {}) as Record<string, unknown>;
+      const scrapbookLine =
+        typeof e.scrapbookLine === "string" ? e.scrapbookLine : "";
+      if (!scrapbookLine) return null;
+      return {
+        // Entries saved by the first Teach Zeb version had no character.
+        character: e.character === "loftus" ? "loftus" : "zeb",
+        problemLabel:
+          typeof e.problemLabel === "string" ? e.problemLabel : "A problem",
+        date: typeof e.date === "string" ? e.date : "",
+        scrapbookLine,
+      };
+    })
+    .filter((e): e is ScrapbookEntry => e !== null);
+}
+
+export function saveScrapbook(entries: ScrapbookEntry[]): void {
+  writeJSON(KEYS.scrapbook, entries);
+}
+
+/** How many cosmetic accessories are unlocked (0…ACCESSORIES.length). */
+export function loadUnlockedCount(): number {
+  const value = readJSON<number>(KEYS.accessoriesUnlocked, 0);
+  if (typeof value !== "number" || !Number.isFinite(value)) return 0;
+  return Math.max(0, Math.min(ACCESSORIES.length, Math.floor(value)));
+}
+
+export function saveUnlockedCount(count: number): void {
+  writeJSON(
+    KEYS.accessoriesUnlocked,
+    Math.max(0, Math.min(ACCESSORIES.length, Math.floor(count)))
+  );
+}
+
+/** The accessory id the student has chosen for the companion, or null. */
+export function loadSelectedAccessory(): string | null {
+  const value = readJSON<string | null>(KEYS.accessorySelected, null);
+  return typeof value === "string" && value ? value : null;
+}
+
+export function saveSelectedAccessory(id: string | null): void {
+  if (id === null) {
+    if (!canUseStorage()) return;
+    try {
+      window.localStorage.removeItem(KEYS.accessorySelected);
+    } catch {
+      // ignore
+    }
+    return;
+  }
+  writeJSON(KEYS.accessorySelected, id);
 }
 
 /** Wipe everything Math Helper has stored on this device. */

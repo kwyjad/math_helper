@@ -6,6 +6,24 @@ textbook or worksheet, picks a problem, and gets **Socratic tutoring** — hints
 and guidance, but never the final answer. They can submit an answer to be
 checked and return to the problem list at any time.
 
+After solving a problem, the student can optionally **teach the method to a
+companion** — a fun, skippable way to lock in what they just learned (the
+protégé effect), with no points, streaks, or leaderboards. At the start they
+pick one:
+
+- **Zeb the zebra** — a dopey, lovable zebra who's bad at math. He's
+  _productively confused_: you **teach** him, and explaining the tricky bits
+  forces you to really understand them.
+- **Sir Loftus the giraffe** — a pompous know-it-all who "demonstrates" the
+  method with total swagger and plants catchable mistakes. You **catch** and
+  correct him, explaining _why_, before he'll grudgingly concede.
+- **None** — just the tutor, no characters.
+
+Teaching is always optional: the invitation after a correct answer is easy to
+decline, a session always has a visible cheerful exit, and solved problems keep
+a button to enter later. Successful sessions add a page to a **Scrapbook** and
+unlock silly cosmetic accessories (localStorage only).
+
 This is the first working version: a clean, correct, end-to-end flow. Visual
 polish comes later; the styling foundations (design tokens) are already in
 place.
@@ -23,8 +41,9 @@ place.
 
 ## How it works
 
-A single client-side state machine (age → upload → problem list → tutor) plus
-two server API routes that hold the API key:
+A single client-side state machine (start [age + companion] → upload → problem
+list → tutor → teach-back / scrapbook) plus three server API routes that hold
+the API key:
 
 - `POST /api/extract` — receives an image, returns a structured JSON list of
   problems (uses Gemini JSON response mode). Each problem captures its stem,
@@ -34,11 +53,24 @@ two server API routes that hold the API key:
   student's age, the chat history, a mode (`hint` or `check`), a submitted
   answer (a typed value or a chosen option letter in check mode), and — when
   available — the **page image**, which is passed to the multimodal model so the
-  tutor can read diagrams and tables. Returns the tutor's reply text.
+  tutor can read diagrams and tables. Returns the tutor's reply text — and, in
+  `check` mode, a private `correct` verdict used only to offer the optional
+  teach-back invitation (never shown to the student).
+- `POST /api/teachback` — powers the companion teach-back. Receives the age, the
+  chosen `character` (`zeb` or `loftus`), the current problem, the page image
+  (so the companion can reference figures), and the chat history. Uses Gemini
+  **JSON response mode** and returns a character-agnostic
+  `{ says, progress, done, scrapbookLine }`: `progress` is how well Zeb
+  understands / how thoroughly Loftus has been corrected (0–100), `done` marks a
+  successful session, and `scrapbookLine` is the companion's one-liner for the
+  Scrapbook.
 
-Because Gemini is stateless, `/api/tutor` re-sends the problem and conversation
-on each call. **Both system prompts live server-side** so they are never
-exposed to the browser.
+Because Gemini is stateless, `/api/tutor` and `/api/teachback` re-send the
+problem and conversation on each call. **All system prompts live server-side**
+(including Zeb's and Sir Loftus's) so they are never exposed to the browser.
+Everything the companions add — the chosen character, Scrapbook entries, and
+unlocked accessories — is stored in `localStorage` only, with defensive reads so
+older saved data never crashes the app.
 
 ## Required environment variable
 

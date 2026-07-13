@@ -5,40 +5,80 @@ import AgeStep from "./components/AgeStep";
 import UploadStep from "./components/UploadStep";
 import ProblemList from "./components/ProblemList";
 import TutorView from "./components/TutorView";
-import type { ChatMessage, Problem } from "./lib/types";
+import TeachbackView from "./components/TeachbackView";
+import Scrapbook from "./components/Scrapbook";
+import type { ChatMessage, Problem, ScrapbookEntry } from "./lib/types";
+import { ACCESSORIES, findAccessory } from "./lib/accessories";
+import {
+  getCompanion,
+  type CompanionChoice,
+  type CompanionId,
+} from "./lib/companions";
 import {
   clearAll,
   loadAge,
+  loadCharacter,
   loadChats,
   loadImage,
   loadProblems,
+  loadScrapbook,
+  loadSelectedAccessory,
+  loadSolved,
+  loadTeachbacks,
+  loadUnlockedCount,
   saveAge,
+  saveCharacter,
   saveChats,
   saveImage,
   saveProblems,
+  saveScrapbook,
+  saveSelectedAccessory,
+  saveSolved,
+  saveTeachbacks,
+  saveUnlockedCount,
   type ChatMap,
   type StoredImage,
+  type TeachbackMap,
+  type TeachbackSession,
 } from "./lib/storage";
 
-type Step = "age" | "upload" | "list" | "tutor";
+type Step = "age" | "upload" | "list" | "tutor" | "teach" | "scrapbook";
+
+function emptySession(character: CompanionId): TeachbackSession {
+  return { history: [], progress: 0, done: false, character };
+}
 
 export default function Home() {
   const [hydrated, setHydrated] = useState(false);
   const [step, setStep] = useState<Step>("age");
   const [age, setAge] = useState<number | null>(null);
+  const [character, setCharacter] = useState<CompanionChoice>("zeb");
   const [problems, setProblems] = useState<Problem[]>([]);
   const [chats, setChats] = useState<ChatMap>({});
   const [image, setImage] = useState<StoredImage | null>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
+
+  // --- Teach-back (Teach Zeb) state ---
+  const [solved, setSolved] = useState<string[]>([]);
+  const [teachbacks, setTeachbacks] = useState<TeachbackMap>({});
+  const [scrapbook, setScrapbook] = useState<ScrapbookEntry[]>([]);
+  const [unlockedCount, setUnlockedCount] = useState(0);
+  const [selectedAccessory, setSelectedAccessory] = useState<string | null>(null);
 
   // --- Hydrate from localStorage once on mount ---
   useEffect(() => {
     const storedAge = loadAge();
     const storedProblems = loadProblems();
     setAge(storedAge);
+    setCharacter(loadCharacter());
     setProblems(storedProblems);
     setChats(loadChats());
     setImage(loadImage());
+    setSolved(loadSolved());
+    setTeachbacks(loadTeachbacks());
+    setScrapbook(loadScrapbook());
+    setUnlockedCount(loadUnlockedCount());
+    setSelectedAccessory(loadSelectedAccessory());
     if (storedAge == null) {
       setStep("age");
     } else if (storedProblems.length === 0) {
@@ -58,9 +98,31 @@ export default function Home() {
     if (hydrated) saveChats(chats);
   }, [chats, hydrated]);
 
-  function handleAge(nextAge: number) {
+  useEffect(() => {
+    if (hydrated) saveSolved(solved);
+  }, [solved, hydrated]);
+
+  useEffect(() => {
+    if (hydrated) saveTeachbacks(teachbacks);
+  }, [teachbacks, hydrated]);
+
+  useEffect(() => {
+    if (hydrated) saveScrapbook(scrapbook);
+  }, [scrapbook, hydrated]);
+
+  useEffect(() => {
+    if (hydrated) saveUnlockedCount(unlockedCount);
+  }, [unlockedCount, hydrated]);
+
+  useEffect(() => {
+    if (hydrated) saveSelectedAccessory(selectedAccessory);
+  }, [selectedAccessory, hydrated]);
+
+  function handleAge(nextAge: number, nextCharacter: CompanionChoice) {
     setAge(nextAge);
     saveAge(nextAge);
+    setCharacter(nextCharacter);
+    saveCharacter(nextCharacter);
     setStep(problems.length === 0 ? "upload" : "list");
   }
 
@@ -109,17 +171,69 @@ export default function Home() {
     setChats((prev) => ({ ...prev, [id]: next }));
   }
 
+  function handleSolved(id: string) {
+    setSolved((prev) => (prev.includes(id) ? prev : [...prev, id]));
+  }
+
+  function handleTeach(id: string) {
+    setSelectedId(id);
+    setStep("teach");
+  }
+
+  function handleSessionChange(id: string, next: TeachbackSession) {
+    setTeachbacks((prev) => ({ ...prev, [id]: next }));
+  }
+
+  /**
+   * A successful teach/catch: record a Scrapbook page and unlock the next
+   * accessory. Deduped by the session's `done` flag (which stays true once set),
+   * so re-entering a completed session can't double-count.
+   */
+  function handleDone(
+    problem: Problem,
+    companionId: CompanionId,
+    scrapbookLine: string
+  ) {
+    const label = problem.label
+      ? `Problem ${problem.label}`
+      : `Problem ${problems.findIndex((p) => p.id === problem.id) + 1}`;
+    setScrapbook((prev) => [
+      ...prev,
+      {
+        character: companionId,
+        problemLabel: label,
+        date: new Date().toISOString(),
+        scrapbookLine,
+      },
+    ]);
+    setUnlockedCount((prev) => {
+      const next = Math.min(ACCESSORIES.length, prev + 1);
+      // Auto-equip the newly unlocked accessory the first time so the student
+      // immediately sees Zeb wearing their reward.
+      if (next > prev) {
+        setSelectedAccessory((cur) => cur ?? ACCESSORIES[next - 1].id);
+      }
+      return next;
+    });
+  }
+
   function handleReset() {
     const ok = window.confirm(
-      "This will erase your age, your problems, and all chats on this device. Continue?"
+      "This will erase your age, your problems, chats, and Zeb's Scrapbook on this device. Continue?"
     );
     if (!ok) return;
     clearAll();
     setAge(null);
+    setCharacter("zeb");
     setProblems([]);
     setChats({});
     setImage(null);
     setSelectedId(null);
+    setSolved([]);
+    setTeachbacks({});
+    setScrapbook([]);
+    setUnlockedCount(0);
+    setSelectedAccessory(null);
     setStep("age");
   }
 
@@ -134,10 +248,29 @@ export default function Home() {
 
   const selectedIndex = problems.findIndex((p) => p.id === selectedId);
   const selectedProblem = selectedIndex >= 0 ? problems[selectedIndex] : null;
+  // The chosen companion, or null when "None" — the top-level opt-out that hides
+  // every teach-back entry point (the app is then just the tutor).
+  const companion = getCompanion(character);
+  const companionLabel = companion ? companion.name : "No companion";
+
+  // Reuse a stored teach-back session only if it belongs to the current
+  // companion; switching companions starts that problem's session fresh.
+  const selectedSession =
+    companion && selectedProblem
+      ? teachbacks[selectedProblem.id]?.character === companion.id
+        ? teachbacks[selectedProblem.id]
+        : emptySession(companion.id)
+      : null;
 
   return (
     <main className="mx-auto w-full max-w-3xl px-4 py-8 sm:py-12">
-      {step === "age" && <AgeStep initialAge={age} onSubmit={handleAge} />}
+      {step === "age" && (
+        <AgeStep
+          initialAge={age}
+          initialCharacter={character}
+          onSubmit={handleAge}
+        />
+      )}
 
       {step === "upload" && (
         <UploadStep
@@ -151,8 +284,14 @@ export default function Home() {
         <ProblemList
           problems={problems}
           age={age}
+          companion={companion}
+          companionLabel={companionLabel}
+          solved={solved}
+          scrapbookCount={scrapbook.length}
           onSelect={handleSelect}
           onEdit={handleEditProblem}
+          onTeach={handleTeach}
+          onOpenScrapbook={() => setStep("scrapbook")}
           onAddMore={() => setStep("upload")}
           onChangeAge={() => setStep("age")}
           onReset={handleReset}
@@ -170,10 +309,43 @@ export default function Home() {
             handleHistoryChange(selectedProblem.id, next)
           }
           onBack={() => setStep("list")}
+          companion={companion}
+          solved={solved.includes(selectedProblem.id)}
+          onSolved={() => handleSolved(selectedProblem.id)}
+          onTeach={() => handleTeach(selectedProblem.id)}
         />
       )}
 
-      {step === "tutor" && !selectedProblem && (
+      {step === "teach" && companion && selectedProblem && selectedSession &&
+        age != null && (
+          <TeachbackView
+            companion={companion}
+            problem={selectedProblem}
+            index={selectedIndex}
+            age={age}
+            image={image}
+            session={selectedSession}
+            onSessionChange={(next) =>
+              handleSessionChange(selectedProblem.id, next)
+            }
+            accessory={findAccessory(selectedAccessory)}
+            onDone={(line) => handleDone(selectedProblem, companion.id, line)}
+            onExit={() => setStep("list")}
+          />
+        )}
+
+      {step === "scrapbook" && (
+        <Scrapbook
+          entries={scrapbook}
+          unlockedCount={unlockedCount}
+          selectedAccessory={selectedAccessory}
+          onSelectAccessory={setSelectedAccessory}
+          onBack={() => setStep("list")}
+        />
+      )}
+
+      {((step === "tutor" && !selectedProblem) ||
+        (step === "teach" && (!selectedProblem || !companion))) && (
         <div className="mx-auto max-w-2xl">
           <button
             type="button"
