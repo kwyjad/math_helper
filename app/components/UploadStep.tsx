@@ -2,6 +2,7 @@
 
 import { useRef, useState } from "react";
 import type { Problem } from "../lib/types";
+import type { StoredImage } from "../lib/storage";
 
 // Read a File as a base64 string (without the data: URL prefix).
 function readFileAsDataUrl(file: File): Promise<string> {
@@ -48,7 +49,9 @@ async function prepareImage(
     if (!ctx) throw new Error("no canvas context");
     ctx.drawImage(img, 0, 0, width, height);
 
-    const jpeg = canvas.toDataURL("image/jpeg", 0.85);
+    // ~0.7 quality keeps the base64 small enough for localStorage (~5 MB cap)
+    // while staying legible for OCR and figure reading.
+    const jpeg = canvas.toDataURL("image/jpeg", 0.7);
     return { base64: stripPrefix(jpeg), mimeType: "image/jpeg" };
   } catch {
     return {
@@ -65,7 +68,11 @@ export default function UploadStep({
 }: {
   hasExistingProblems: boolean;
   /** replace = discard current list; append = add to it. */
-  onExtracted: (problems: Problem[], mode: "replace" | "append") => void;
+  onExtracted: (
+    problems: Problem[],
+    mode: "replace" | "append",
+    image: StoredImage
+  ) => void;
   onCancel?: () => void;
 }) {
   const inputRef = useRef<HTMLInputElement>(null);
@@ -113,7 +120,9 @@ export default function UploadStep({
         );
         return;
       }
-      onExtracted(problems, mode);
+      // Keep the (already-compressed) page image so figures/tables survive into
+      // the tutoring step.
+      onExtracted(problems, mode, { base64, mimeType });
     } catch {
       setError("Couldn't reach the server. Check your connection and retry.");
     } finally {

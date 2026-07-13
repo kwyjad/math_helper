@@ -2,12 +2,15 @@
 
 import { useEffect, useRef, useState } from "react";
 import type { ChatMessage, Problem } from "../lib/types";
+import type { StoredImage } from "../lib/storage";
 import MathText from "./MathText";
+import { OptionsList, TableBlock } from "./ProblemExtras";
 
 export default function TutorView({
   problem,
   index,
   age,
+  image,
   history,
   onHistoryChange,
   onBack,
@@ -15,6 +18,7 @@ export default function TutorView({
   problem: Problem;
   index: number;
   age: number;
+  image: StoredImage | null;
   history: ChatMessage[];
   onHistoryChange: (next: ChatMessage[]) => void;
   onBack: () => void;
@@ -22,9 +26,12 @@ export default function TutorView({
   const [input, setInput] = useState("");
   const [answer, setAnswer] = useState("");
   const [showAnswer, setShowAnswer] = useState(false);
+  const [imageExpanded, setImageExpanded] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
+
+  const isMultipleChoice = problem.options.length > 0;
 
   useEffect(() => {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight });
@@ -43,7 +50,16 @@ export default function TutorView({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           age,
-          problem: { text: problem.text, latex: problem.latex },
+          problem: {
+            text: problem.text,
+            latex: problem.latex,
+            options: problem.options,
+            hasFigure: problem.hasFigure,
+            figureDescription: problem.figureDescription,
+            table: problem.table,
+          },
+          image: image?.base64,
+          imageMimeType: image?.mimeType,
           history: nextHistory,
           mode,
           submittedAnswer,
@@ -92,6 +108,19 @@ export default function TutorView({
     void callTutor(nextHistory, "check", trimmed);
   }
 
+  /** Submit a chosen multiple-choice letter (e.g. "C") to be checked. */
+  function submitLetter(letter: string) {
+    if (loading) return;
+    const nextHistory: ChatMessage[] = [
+      ...history,
+      { role: "user", content: `My answer: ${letter}` },
+    ];
+    onHistoryChange(nextHistory);
+    void callTutor(nextHistory, "check", letter);
+  }
+
+  const imageSrc = image ? `data:${image.mimeType};base64,${image.base64}` : null;
+
   return (
     <section className="mx-auto flex max-w-2xl flex-col gap-4">
       <div className="flex items-center justify-between gap-3">
@@ -115,6 +144,39 @@ export default function TutorView({
         {problem.latex && (
           <div className="mt-2 text-text">
             <MathText>{problem.latex}</MathText>
+          </div>
+        )}
+        {problem.table && <TableBlock table={problem.table} />}
+        {problem.hasFigure && problem.figureDescription && (
+          <p className="mt-3 text-sm italic text-text-muted">
+            Figure: {problem.figureDescription}
+          </p>
+        )}
+        <OptionsList options={problem.options} />
+
+        {/* The page image — lets the student see the diagram/table and doubles
+            as a check that the transcription matches the page. */}
+        {imageSrc && (
+          <div className="mt-4">
+            <button
+              type="button"
+              onClick={() => setImageExpanded((v) => !v)}
+              className="block w-full text-left"
+              aria-expanded={imageExpanded}
+              title={imageExpanded ? "Tap to shrink" : "Tap to enlarge"}
+            >
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={imageSrc}
+                alt="The page this problem came from"
+                className={`w-auto rounded-md border border-border transition-all ${
+                  imageExpanded ? "max-h-[70vh]" : "max-h-40"
+                }`}
+              />
+            </button>
+            <p className="mt-1 text-xs text-text-muted">
+              {imageExpanded ? "Tap image to shrink" : "Tap image to enlarge"}
+            </p>
           </div>
         )}
       </div>
@@ -187,7 +249,32 @@ export default function TutorView({
       </form>
 
       {/* Submit an answer to be checked */}
-      {showAnswer ? (
+      {isMultipleChoice ? (
+        // Multiple choice: tap a letter — nicer on a phone than typing.
+        <div className="flex flex-col gap-2 rounded-lg border border-accent/40 bg-surface p-4">
+          <span className="font-medium">Check your answer</span>
+          <p className="text-sm text-text-muted">
+            Tap the letter you think is right — the tutor will tell you if
+            you&apos;re on track, but never which letter is correct.
+          </p>
+          <div className="flex flex-wrap gap-2">
+            {problem.options.map((option, i) => {
+              const letter = option.letter || String.fromCharCode(65 + i);
+              return (
+                <button
+                  key={`${letter}-${i}`}
+                  type="button"
+                  onClick={() => submitLetter(letter)}
+                  disabled={loading}
+                  className="min-w-12 rounded-md border border-accent px-4 py-3 text-lg font-semibold text-accent transition-colors hover:bg-accent/10 focus:outline-none focus:ring-2 focus:ring-accent/40 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  {letter}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      ) : showAnswer ? (
         <form
           onSubmit={submitAnswer}
           className="flex flex-col gap-2 rounded-lg border border-accent/40 bg-surface p-4"

@@ -3,6 +3,7 @@
 import { useState } from "react";
 import type { Problem } from "../lib/types";
 import MathText from "./MathText";
+import { OptionsList, TableBlock } from "./ProblemExtras";
 
 function hasUnclear(problem: Problem): boolean {
   return (
@@ -109,6 +110,13 @@ function ProblemRow({
               <MathText>{problem.latex}</MathText>
             </div>
           )}
+          {problem.table && <TableBlock table={problem.table} />}
+          {problem.hasFigure && problem.figureDescription && (
+            <p className="mt-3 text-sm italic text-text-muted">
+              Figure: {problem.figureDescription}
+            </p>
+          )}
+          <OptionsList options={problem.options} />
           <div className="mt-4 flex flex-wrap gap-2">
             <button
               type="button"

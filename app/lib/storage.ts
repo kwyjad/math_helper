@@ -11,7 +11,14 @@ const KEYS = {
   age: "mathhelper.age",
   problems: "mathhelper.problems",
   chats: "mathhelper.chats",
+  image: "mathhelper.image",
 } as const;
+
+/** The current page image, stored as a compressed JPEG data URL prefix-less base64. */
+export interface StoredImage {
+  base64: string;
+  mimeType: string;
+}
 
 function canUseStorage(): boolean {
   return typeof window !== "undefined" && !!window.localStorage;
@@ -46,13 +53,76 @@ export function saveAge(age: number): void {
   writeJSON(KEYS.age, age);
 }
 
+/**
+ * Fill in any fields missing from data saved by an older version of the app so
+ * the UI never crashes on `options`/`hasFigure`/`table` being undefined.
+ */
+export function normalizeProblem(raw: unknown): Problem {
+  const p = (raw ?? {}) as Record<string, unknown>;
+  const options = Array.isArray(p.options)
+    ? (p.options as unknown[])
+        .map((o) => {
+          const obj = (o ?? {}) as Record<string, unknown>;
+          return {
+            letter: typeof obj.letter === "string" ? obj.letter : "",
+            text: typeof obj.text === "string" ? obj.text : "",
+            latex: typeof obj.latex === "string" ? obj.latex : "",
+          };
+        })
+        .filter((o) => o.letter || o.text || o.latex)
+    : [];
+  return {
+    id: typeof p.id === "string" ? p.id : String(p.id ?? ""),
+    label: typeof p.label === "string" ? p.label : "",
+    text: typeof p.text === "string" ? p.text : "",
+    latex: typeof p.latex === "string" ? p.latex : "",
+    options,
+    hasFigure: p.hasFigure === true,
+    figureDescription:
+      typeof p.figureDescription === "string" ? p.figureDescription : "",
+    table: typeof p.table === "string" ? p.table : "",
+  };
+}
+
 export function loadProblems(): Problem[] {
-  const value = readJSON<Problem[]>(KEYS.problems, []);
-  return Array.isArray(value) ? value : [];
+  const value = readJSON<unknown[]>(KEYS.problems, []);
+  return Array.isArray(value) ? value.map(normalizeProblem) : [];
 }
 
 export function saveProblems(problems: Problem[]): void {
   writeJSON(KEYS.problems, problems);
+}
+
+export function loadImage(): StoredImage | null {
+  const value = readJSON<StoredImage | null>(KEYS.image, null);
+  if (
+    value &&
+    typeof value === "object" &&
+    typeof value.base64 === "string" &&
+    value.base64
+  ) {
+    return {
+      base64: value.base64,
+      mimeType:
+        typeof value.mimeType === "string" && value.mimeType
+          ? value.mimeType
+          : "image/jpeg",
+    };
+  }
+  return null;
+}
+
+export function saveImage(image: StoredImage | null): void {
+  if (image === null) {
+    if (!canUseStorage()) return;
+    try {
+      window.localStorage.removeItem(KEYS.image);
+    } catch {
+      // ignore
+    }
+    return;
+  }
+  writeJSON(KEYS.image, image);
 }
 
 /** Per-problem chat history, keyed by problem id. */

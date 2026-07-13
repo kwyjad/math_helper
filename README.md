@@ -27,10 +27,14 @@ A single client-side state machine (age → upload → problem list → tutor) p
 two server API routes that hold the API key:
 
 - `POST /api/extract` — receives an image, returns a structured JSON list of
-  problems (uses Gemini JSON response mode).
-- `POST /api/tutor` — receives the current problem, the student's age, the chat
-  history, a mode (`hint` or `check`), and (in check mode) a submitted answer;
-  returns the tutor's reply text.
+  problems (uses Gemini JSON response mode). Each problem captures its stem,
+  LaTeX, multiple-choice **options**, whether it depends on a **figure**, and
+  any **table** (as markdown).
+- `POST /api/tutor` — receives the current problem (including its options), the
+  student's age, the chat history, a mode (`hint` or `check`), a submitted
+  answer (a typed value or a chosen option letter in check mode), and — when
+  available — the **page image**, which is passed to the multimodal model so the
+  tutor can read diagrams and tables. Returns the tutor's reply text.
 
 Because Gemini is stateless, `/api/tutor` re-sends the problem and conversation
 on each call. **Both system prompts live server-side** so they are never
@@ -103,5 +107,8 @@ block).
 
 Everything the student enters (age, transcribed problems, chat history) is
 stored in their browser's `localStorage` on that device only. Use
-**Reset everything** in the app to clear it. Uploaded photos are sent to the
-server route solely to be transcribed by Gemini and are not persisted.
+**Reset everything** in the app to clear it. The uploaded photo is downscaled
+and re-compressed in the browser and kept in `localStorage` too, so the tutor
+can refer back to diagrams and tables on the page — it is never stored on any
+server. It is sent to the Gemini API (server-side) to be transcribed and, during
+tutoring, so the model can read figures.

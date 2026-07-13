@@ -10,11 +10,14 @@ import {
   clearAll,
   loadAge,
   loadChats,
+  loadImage,
   loadProblems,
   saveAge,
   saveChats,
+  saveImage,
   saveProblems,
   type ChatMap,
+  type StoredImage,
 } from "./lib/storage";
 
 type Step = "age" | "upload" | "list" | "tutor";
@@ -25,6 +28,7 @@ export default function Home() {
   const [age, setAge] = useState<number | null>(null);
   const [problems, setProblems] = useState<Problem[]>([]);
   const [chats, setChats] = useState<ChatMap>({});
+  const [image, setImage] = useState<StoredImage | null>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
 
   // --- Hydrate from localStorage once on mount ---
@@ -34,6 +38,7 @@ export default function Home() {
     setAge(storedAge);
     setProblems(storedProblems);
     setChats(loadChats());
+    setImage(loadImage());
     if (storedAge == null) {
       setStep("age");
     } else if (storedProblems.length === 0) {
@@ -59,7 +64,15 @@ export default function Home() {
     setStep(problems.length === 0 ? "upload" : "list");
   }
 
-  function handleExtracted(next: Problem[], mode: "replace" | "append") {
+  function handleExtracted(
+    next: Problem[],
+    mode: "replace" | "append",
+    nextImage: StoredImage
+  ) {
+    // A single current image is kept for now; the latest upload becomes the
+    // page image every problem in the list is tutored against.
+    setImage(nextImage);
+    saveImage(nextImage);
     if (mode === "replace") {
       setProblems(next);
       setChats({});
@@ -105,6 +118,7 @@ export default function Home() {
     setAge(null);
     setProblems([]);
     setChats({});
+    setImage(null);
     setSelectedId(null);
     setStep("age");
   }
@@ -150,6 +164,7 @@ export default function Home() {
           problem={selectedProblem}
           index={selectedIndex}
           age={age}
+          image={image}
           history={chats[selectedProblem.id] ?? []}
           onHistoryChange={(next) =>
             handleHistoryChange(selectedProblem.id, next)
