@@ -72,6 +72,14 @@ function validate(body: unknown): TutorRequest | null {
     mode: b.mode,
     submittedAnswer:
       typeof b.submittedAnswer === "string" ? b.submittedAnswer : undefined,
+    answerImage:
+      typeof b.answerImage === "string" && b.answerImage
+        ? b.answerImage
+        : undefined,
+    answerImageMimeType:
+      typeof b.answerImageMimeType === "string"
+        ? b.answerImageMimeType
+        : undefined,
   };
 }
 
@@ -117,14 +125,23 @@ export async function POST(req: NextRequest) {
     parts: [{ text: m.content }],
   }));
 
-  // In check mode, append the submission as a final user turn.
+  // In check mode, append the submission as a final user turn. The student may
+  // attach a photo of their work (e.g. a required drawing) — include it as an
+  // image part so the tutor can evaluate it directly.
   if (data.mode === "check") {
     const answer = data.submittedAnswer ?? "";
+    const note = data.answerImage
+      ? `The student submits their answer to be checked. Typed answer: ${
+          answer || "(none — see the attached photo)"
+        }. They have also attached a photo of their own work — look at it and evaluate what they did.`
+      : `The student submits this answer to be checked: ${answer}`;
     contents.push({
       role: "user",
-      parts: [
-        { text: `The student submits this answer to be checked: ${answer}` },
-      ],
+      parts: withImage(
+        [{ text: note }],
+        data.answerImage,
+        data.answerImageMimeType
+      ),
     });
   }
 

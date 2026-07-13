@@ -158,6 +158,16 @@ export default function ProblemList({
 }) {
   return (
     <section className="mx-auto flex max-w-2xl flex-col gap-6">
+      <div className="flex">
+        <button
+          type="button"
+          onClick={onReset}
+          className="rounded-md border border-border px-3 py-2 text-sm font-medium text-error transition-colors hover:border-error focus:outline-none focus:ring-2 focus:ring-error/40"
+        >
+          Start Over
+        </button>
+      </div>
+
       <header className="flex flex-col gap-2">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <h1 className="text-2xl font-semibold">Your problems</h1>
@@ -203,13 +213,6 @@ export default function ProblemList({
           className="rounded-md bg-primary px-4 py-2 font-medium text-primary-contrast transition-opacity hover:opacity-90 focus:outline-none focus:ring-2 focus:ring-primary/40"
         >
           Add or replace problems
-        </button>
-        <button
-          type="button"
-          onClick={onReset}
-          className="rounded-md border border-border px-4 py-2 font-medium text-error transition-colors hover:border-error focus:outline-none focus:ring-2 focus:ring-error/40"
-        >
-          Reset everything
         </button>
       </div>
     </section>
