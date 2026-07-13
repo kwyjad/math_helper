@@ -15,12 +15,52 @@ export type CompanionChoice = CompanionId | "none";
 /** The four meter/mood levels, low → done. A single level drives both. */
 export type CompanionLevel = 0 | 1 | 2 | 3;
 
-/** Map a 0–100 score (+ done flag) onto one of the four levels. */
+/**
+ * Map a 0–100 score (+ done flag) onto one of the four levels.
+ *
+ * NOTE: for the meter/mood *bands* level 3 is reached at progress ≥ 100 OR
+ * `done`. The finale character art, however, must fire ONLY on a true `done`
+ * (never merely at high progress) so the payoff stays earned — see
+ * `characterImageFor`.
+ */
 export function levelFor(progress: number, done: boolean): CompanionLevel {
   if (done || progress >= 100) return 3;
   if (progress >= 67) return 2;
   if (progress >= 34) return 1;
   return 0;
+}
+
+/**
+ * The four illustrated states per companion, indexed by progress band:
+ *   [0] 0–33  · [1] 34–66 · [2] 67–99 · finale (done)
+ * Arcs run opposite: Zeb climbs lost → thrilled, Loftus deflates proud → beaten.
+ */
+interface CompanionArt {
+  /** progress 0–33 */
+  low: string;
+  /** progress 34–66 */
+  mid: string;
+  /** progress 67–99 */
+  high: string;
+  /** done = true (finale only — never merely at high progress) */
+  finale: string;
+}
+
+/**
+ * Resolve the active character image for a session. The finale image fires
+ * strictly on `done`; otherwise the band is chosen by raw progress so a
+ * near-complete-but-not-done session still shows the "confident/catching on"
+ * art rather than the earned finale.
+ */
+export function characterImageFor(
+  art: CompanionArt,
+  progress: number,
+  done: boolean
+): string {
+  if (done) return art.finale;
+  if (progress >= 67) return art.high;
+  if (progress >= 34) return art.mid;
+  return art.low;
 }
 
 interface BandStyle {
@@ -69,6 +109,10 @@ export interface Companion {
   bands: [BandStyle, BandStyle, BandStyle, BandStyle];
   /** Four mood art states, indexed by level (0 → 3). */
   moods: [MoodStyle, MoodStyle, MoodStyle, MoodStyle];
+  /** Illustrated bust art per progress band + finale. */
+  art: CompanionArt;
+  /** Picker-card art on the start screen (the "hero" pose). */
+  pickerImage: string;
 }
 
 export const COMPANIONS: Record<CompanionId, Companion> = {
@@ -98,6 +142,13 @@ export const COMPANIONS: Record<CompanionId, Companion> = {
       { face: "😃", caption: "ooh!", ring: "ring-primary/50" },
       { face: "🥳", caption: "YAHOO!", ring: "ring-success/60" },
     ],
+    art: {
+      low: "/characters/zeb/lost.png",
+      mid: "/characters/zeb/warming.png",
+      high: "/characters/zeb/close.png",
+      finale: "/characters/zeb/win.png",
+    },
+    pickerImage: "/characters/zeb/close.png",
   },
   loftus: {
     id: "loftus",
@@ -126,6 +177,13 @@ export const COMPANIONS: Record<CompanionId, Companion> = {
       { face: "😰", caption: "I… hmm.", ring: "ring-primary/50" },
       { face: "😩", caption: "…fine. FINE.", ring: "ring-success/60" },
     ],
+    art: {
+      low: "/characters/loftus/proud.png",
+      mid: "/characters/loftus/rattled.png",
+      high: "/characters/loftus/grudging.png",
+      finale: "/characters/loftus/beaten.png",
+    },
+    pickerImage: "/characters/loftus/proud.png",
   },
 };
 

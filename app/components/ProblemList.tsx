@@ -45,7 +45,7 @@ function ProblemRow({
   }
 
   return (
-    <li className="rounded-lg border border-border bg-surface p-4">
+    <li className="rounded-lg border border-border bg-surface p-4 shadow-soft">
       <div className="flex items-start justify-between gap-3">
         <span className="text-sm font-semibold text-text-muted">
           {problem.label ? `Problem ${problem.label}` : `Problem ${index + 1}`}
@@ -101,14 +101,14 @@ function ProblemRow({
             <button
               type="button"
               onClick={save}
-              className="rounded-md bg-primary px-4 py-2 font-medium text-primary-contrast transition-opacity hover:opacity-90"
+              className="press rounded-md bg-primary px-4 py-2 font-medium text-primary-contrast transition-colors hover:bg-primary-hover"
             >
               Save
             </button>
             <button
               type="button"
               onClick={cancel}
-              className="rounded-md border border-border px-4 py-2 font-medium transition-colors hover:border-primary"
+              className="press rounded-md border border-border bg-surface px-4 py-2 font-medium transition-colors hover:border-primary"
             >
               Cancel
             </button>
@@ -135,14 +135,14 @@ function ProblemRow({
             <button
               type="button"
               onClick={onSelect}
-              className="rounded-md bg-primary px-4 py-2 font-medium text-primary-contrast transition-opacity hover:opacity-90 focus:outline-none focus:ring-2 focus:ring-primary/40"
+              className="press rounded-md bg-primary px-4 py-2 font-medium text-primary-contrast shadow-soft transition-colors hover:bg-primary-hover focus:outline-none focus:ring-2 focus:ring-primary/40"
             >
               Work on this
             </button>
             <button
               type="button"
               onClick={() => setEditing(true)}
-              className="rounded-md border border-border px-4 py-2 font-medium transition-colors hover:border-primary focus:outline-none focus:ring-2 focus:ring-primary/40"
+              className="press rounded-md border border-border bg-surface px-4 py-2 font-medium text-text-muted transition-colors hover:border-primary hover:text-text focus:outline-none focus:ring-2 focus:ring-primary/40"
             >
               Edit
             </button>
@@ -150,7 +150,7 @@ function ProblemRow({
               <button
                 type="button"
                 onClick={onTeach}
-                className="rounded-md border border-accent px-4 py-2 font-medium text-accent transition-colors hover:bg-accent/10 focus:outline-none focus:ring-2 focus:ring-accent/40"
+                className="press rounded-md border border-primary bg-accent-soft/50 px-4 py-2 font-medium text-primary transition-colors hover:bg-accent-soft focus:outline-none focus:ring-2 focus:ring-primary/40"
               >
                 {companion.emoji} {companion.actionVerb} {companion.name}
               </button>
@@ -199,7 +199,7 @@ export default function ProblemList({
         <button
           type="button"
           onClick={onReset}
-          className="rounded-md border border-border px-3 py-2 text-sm font-medium text-error transition-colors hover:border-error focus:outline-none focus:ring-2 focus:ring-error/40"
+          className="press rounded-md border border-border bg-surface px-3 py-2 text-sm font-medium text-error transition-colors hover:border-error focus:outline-none focus:ring-2 focus:ring-error/40"
         >
           Start Over
         </button>
@@ -207,11 +207,11 @@ export default function ProblemList({
           <button
             type="button"
             onClick={onOpenScrapbook}
-            className="rounded-md border border-accent px-3 py-2 text-sm font-medium text-accent transition-colors hover:bg-accent/10 focus:outline-none focus:ring-2 focus:ring-accent/40"
+            className="press rounded-md border border-primary bg-accent-soft/50 px-3 py-2 text-sm font-medium text-primary transition-colors hover:bg-accent-soft focus:outline-none focus:ring-2 focus:ring-primary/40"
           >
             📖 Scrapbook
             {scrapbookCount > 0 && (
-              <span className="ml-1.5 rounded-full bg-accent/15 px-1.5 py-0.5 text-xs">
+              <span className="ml-1.5 rounded-full bg-primary/15 px-1.5 py-0.5 text-xs">
                 {scrapbookCount}
               </span>
             )}
@@ -240,7 +240,7 @@ export default function ProblemList({
       </header>
 
       {problems.length === 0 ? (
-        <p className="rounded-lg border border-border bg-surface p-4 text-text-muted">
+        <p className="rounded-lg border border-border bg-surface p-4 text-text-muted shadow-soft">
           No problems yet. Upload a photo to get started.
         </p>
       ) : (
@@ -264,7 +264,7 @@ export default function ProblemList({
         <button
           type="button"
           onClick={onAddMore}
-          className="rounded-md bg-primary px-4 py-2 font-medium text-primary-contrast transition-opacity hover:opacity-90 focus:outline-none focus:ring-2 focus:ring-primary/40"
+          className="press rounded-md bg-primary px-4 py-2 font-medium text-primary-contrast shadow-soft transition-colors hover:bg-primary-hover focus:outline-none focus:ring-2 focus:ring-primary/40"
         >
           Add or replace problems
         </button>
