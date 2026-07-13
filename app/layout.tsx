@@ -18,7 +18,7 @@ const body = Inter({
 });
 
 export const metadata: Metadata = {
-  title: "Math Helper",
+  title: "Dijits and Ijits",
   description:
     "Work through your math homework one problem at a time with a Socratic tutor.",
 };
