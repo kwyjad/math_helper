@@ -2,6 +2,7 @@
 
 import type { ScrapbookEntry } from "../lib/types";
 import { ACCESSORIES, unlockedAccessories } from "../lib/accessories";
+import { COMPANIONS } from "../lib/companions";
 
 function formatDate(iso: string): string {
   if (!iso) return "";
@@ -45,17 +46,17 @@ export default function Scrapbook({
       </div>
 
       <header className="flex flex-col gap-2">
-        <h1 className="text-2xl font-semibold">🦓 Zeb&apos;s Scrapbook</h1>
+        <h1 className="text-2xl font-semibold">📖 Scrapbook</h1>
         <p className="text-text-muted">
-          Everything you&apos;ve taught Zeb — a growing keepsake. Teach him a new
-          method to add a page (and unlock a new accessory).
+          Every method you&apos;ve taught Zeb or caught Sir Loftus on — a growing
+          keepsake. Each success adds a page and unlocks a new accessory.
         </p>
       </header>
 
       {/* Wardrobe: pick from unlocked accessories */}
       <div className="flex flex-col gap-3 rounded-lg border border-border bg-surface p-4">
         <div className="flex items-center justify-between">
-          <h2 className="font-semibold">Zeb&apos;s Wardrobe</h2>
+          <h2 className="font-semibold">Wardrobe</h2>
           <span className="text-sm text-text-muted">
             {unlocked.length}/{ACCESSORIES.length} unlocked
           </span>
@@ -105,33 +106,33 @@ export default function Scrapbook({
       {/* Entries */}
       {ordered.length === 0 ? (
         <p className="rounded-lg border border-border bg-surface p-4 text-text-muted">
-          No pages yet. Solve a problem, then tap{" "}
-          <span className="font-medium text-text">Teach Zeb</span> to teach him
-          how you did it — his first lesson will land here.
+          No pages yet. Solve a problem, then teach it to your companion — your
+          first success will land here.
         </p>
       ) : (
         <ul className="flex flex-col gap-3">
-          {ordered.map((entry, i) => (
-            <li
-              key={i}
-              className="rounded-lg border border-border bg-surface p-4"
-            >
-              <div className="flex items-baseline justify-between gap-3">
-                <span className="text-sm font-semibold text-text-muted">
-                  {entry.problemLabel}
-                </span>
-                {formatDate(entry.date) && (
-                  <span className="text-xs text-text-muted">
-                    {formatDate(entry.date)}
+          {ordered.map((entry, i) => {
+            const comp = COMPANIONS[entry.character] ?? COMPANIONS.zeb;
+            return (
+              <li
+                key={i}
+                className="rounded-lg border border-border bg-surface p-4"
+              >
+                <div className="flex items-baseline justify-between gap-3">
+                  <span className="text-sm font-semibold text-text-muted">
+                    <span aria-hidden>{comp.emoji} </span>
+                    {comp.scrapbookVerb} · {entry.problemLabel}
                   </span>
-                )}
-              </div>
-              <p className="mt-1 text-text">
-                <span aria-hidden>🦓 </span>
-                {entry.scrapbookLine}
-              </p>
-            </li>
-          ))}
+                  {formatDate(entry.date) && (
+                    <span className="text-xs text-text-muted">
+                      {formatDate(entry.date)}
+                    </span>
+                  )}
+                </div>
+                <p className="mt-1 text-text">{entry.scrapbookLine}</p>
+              </li>
+            );
+          })}
         </ul>
       )}
     </section>

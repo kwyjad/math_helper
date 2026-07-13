@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import type { ChatMessage, Problem } from "../lib/types";
 import type { StoredImage } from "../lib/storage";
 import { prepareImage } from "../lib/image";
+import type { Companion } from "../lib/companions";
 import MathText from "./MathText";
 import { OptionsList, TableBlock } from "./ProblemExtras";
 
@@ -15,7 +16,7 @@ export default function TutorView({
   history,
   onHistoryChange,
   onBack,
-  companionEnabled = false,
+  companion = null,
   solved = false,
   onSolved,
   onTeach,
@@ -27,8 +28,8 @@ export default function TutorView({
   history: ChatMessage[];
   onHistoryChange: (next: ChatMessage[]) => void;
   onBack: () => void;
-  /** Whether a companion is chosen (teach-back offered at all). */
-  companionEnabled?: boolean;
+  /** The chosen companion, or null when "None" (teach-back never offered). */
+  companion?: Companion | null;
   /** Whether this problem has already been solved (retains a teach button). */
   solved?: boolean;
   /** Called when the tutor confirms a correct answer. */
@@ -98,7 +99,7 @@ export default function TutorView({
       // companion is chosen) surface the optional teach-back invitation.
       if (mode === "check" && data.correct === true) {
         onSolved?.();
-        if (companionEnabled) setShowInvite(true);
+        if (companion) setShowInvite(true);
       }
     } catch {
       setError("Couldn't reach the tutor. Check your connection and retry.");
@@ -188,13 +189,13 @@ export default function TutorView({
           ← Back to list
         </button>
         <div className="flex items-center gap-2">
-          {companionEnabled && solved && onTeach && (
+          {companion && solved && onTeach && (
             <button
               type="button"
               onClick={onTeach}
               className="rounded-md border border-accent px-3 py-2 text-sm font-medium text-accent transition-colors hover:bg-accent/10 focus:outline-none focus:ring-2 focus:ring-accent/40"
             >
-              🦓 Teach Zeb
+              {companion.emoji} {companion.actionVerb} {companion.name}
             </button>
           )}
           <span className="text-sm font-semibold text-text-muted">
@@ -205,11 +206,9 @@ export default function TutorView({
 
       {/* Optional teach-back invitation after a correct answer. Easy to decline;
           declining or leaving never blocks anything. */}
-      {companionEnabled && showInvite && onTeach && (
+      {companion && showInvite && onTeach && (
         <div className="flex flex-col gap-3 rounded-lg border border-accent/40 bg-accent/5 p-4 sm:flex-row sm:items-center sm:justify-between">
-          <p className="font-medium">
-            Nice work! Want to teach Zeb how you did it? 🦓
-          </p>
+          <p className="font-medium">{companion.invite}</p>
           <div className="flex gap-2">
             <button
               type="button"

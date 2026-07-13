@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import type { Problem } from "../lib/types";
+import type { Companion } from "../lib/companions";
 import MathText from "./MathText";
 import { OptionsList, TableBlock } from "./ProblemExtras";
 
@@ -15,7 +16,7 @@ function ProblemRow({
   problem,
   index,
   solved,
-  showTeach,
+  companion,
   onSelect,
   onEdit,
   onTeach,
@@ -23,7 +24,7 @@ function ProblemRow({
   problem: Problem;
   index: number;
   solved: boolean;
-  showTeach: boolean;
+  companion: Companion | null;
   onSelect: () => void;
   onEdit: (next: Problem) => void;
   onTeach: () => void;
@@ -145,13 +146,13 @@ function ProblemRow({
             >
               Edit
             </button>
-            {showTeach && solved && (
+            {companion && solved && (
               <button
                 type="button"
                 onClick={onTeach}
                 className="rounded-md border border-accent px-4 py-2 font-medium text-accent transition-colors hover:bg-accent/10 focus:outline-none focus:ring-2 focus:ring-accent/40"
               >
-                🦓 Teach Zeb
+                {companion.emoji} {companion.actionVerb} {companion.name}
               </button>
             )}
           </div>
@@ -164,8 +165,9 @@ function ProblemRow({
 export default function ProblemList({
   problems,
   age,
+  companion,
+  companionLabel,
   solved,
-  companionEnabled,
   scrapbookCount,
   onSelect,
   onEdit,
@@ -177,8 +179,10 @@ export default function ProblemList({
 }: {
   problems: Problem[];
   age: number | null;
+  companion: Companion | null;
+  /** Short companion label for the "Age · Zeb (change)" affordance. */
+  companionLabel: string;
   solved: string[];
-  companionEnabled: boolean;
   scrapbookCount: number;
   onSelect: (id: string) => void;
   onEdit: (next: Problem) => void;
@@ -199,13 +203,13 @@ export default function ProblemList({
         >
           Start Over
         </button>
-        {companionEnabled && (
+        {companion && (
           <button
             type="button"
             onClick={onOpenScrapbook}
             className="rounded-md border border-accent px-3 py-2 text-sm font-medium text-accent transition-colors hover:bg-accent/10 focus:outline-none focus:ring-2 focus:ring-accent/40"
           >
-            🦓 Zeb&apos;s Scrapbook
+            📖 Scrapbook
             {scrapbookCount > 0 && (
               <span className="ml-1.5 rounded-full bg-accent/15 px-1.5 py-0.5 text-xs">
                 {scrapbookCount}
@@ -224,7 +228,7 @@ export default function ProblemList({
               onClick={onChangeAge}
               className="text-sm text-text-muted underline underline-offset-2 hover:text-text"
             >
-              Age: {age} (change)
+              Age {age} · {companionLabel} (change)
             </button>
           )}
         </div>
@@ -247,7 +251,7 @@ export default function ProblemList({
               problem={problem}
               index={index}
               solved={solvedSet.has(problem.id)}
-              showTeach={companionEnabled}
+              companion={companion}
               onSelect={() => onSelect(problem.id)}
               onEdit={onEdit}
               onTeach={() => onTeach(problem.id)}

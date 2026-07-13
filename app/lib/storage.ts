@@ -1,6 +1,7 @@
 "use client";
 
 import { ACCESSORIES } from "./accessories";
+import type { CompanionChoice, CompanionId } from "./companions";
 import type { ChatMessage, Problem, ScrapbookEntry } from "./types";
 
 // -----------------------------------------------------------------------------
@@ -10,6 +11,7 @@ import type { ChatMessage, Problem, ScrapbookEntry } from "./types";
 
 const KEYS = {
   age: "mathhelper.age",
+  character: "mathhelper.character",
   problems: "mathhelper.problems",
   chats: "mathhelper.chats",
   image: "mathhelper.image",
@@ -58,6 +60,21 @@ export function loadAge(): number | null {
 
 export function saveAge(age: number): void {
   writeJSON(KEYS.age, age);
+}
+
+/**
+ * The chosen companion. Missing/old data (saved before the character picker
+ * existed) defaults to Zeb so the teach-back feature stays discoverable; the
+ * student can switch to "none" any time from the start screen.
+ */
+export function loadCharacter(): CompanionChoice {
+  const value = readJSON<string>(KEYS.character, "zeb");
+  if (value === "zeb" || value === "loftus" || value === "none") return value;
+  return "zeb";
+}
+
+export function saveCharacter(choice: CompanionChoice): void {
+  writeJSON(KEYS.character, choice);
 }
 
 /**
@@ -160,11 +177,16 @@ export function saveSolved(ids: string[]): void {
   writeJSON(KEYS.solved, Array.from(new Set(ids)));
 }
 
-/** A persisted teach-back session: the visible chat plus meter/done state. */
+/**
+ * A persisted teach-back session: the visible chat, meter/done state, and which
+ * companion it belongs to. `progress`/`done` also accept the older
+ * `understanding`/`gotIt` keys saved by the first Teach Zeb version.
+ */
 export interface TeachbackSession {
   history: ChatMessage[];
-  understanding: number;
-  gotIt: boolean;
+  progress: number;
+  done: boolean;
+  character: CompanionId;
 }
 
 export type TeachbackMap = Record<string, TeachbackSession>;
@@ -183,11 +205,18 @@ function normalizeSession(raw: unknown): TeachbackSession {
         )
         .map((m) => ({ role: m.role, content: m.content }))
     : [];
-  const understanding =
-    typeof s.understanding === "number" && Number.isFinite(s.understanding)
-      ? Math.max(0, Math.min(100, Math.round(s.understanding)))
+  const rawProgress =
+    typeof s.progress === "number"
+      ? s.progress
+      : typeof s.understanding === "number"
+      ? s.understanding
       : 0;
-  return { history, understanding, gotIt: s.gotIt === true };
+  const progress = Number.isFinite(rawProgress)
+    ? Math.max(0, Math.min(100, Math.round(rawProgress)))
+    : 0;
+  const done = s.done === true || s.gotIt === true;
+  const character: CompanionId = s.character === "loftus" ? "loftus" : "zeb";
+  return { history, progress, done, character };
 }
 
 export function loadTeachbacks(): TeachbackMap {
@@ -215,6 +244,8 @@ export function loadScrapbook(): ScrapbookEntry[] {
         typeof e.scrapbookLine === "string" ? e.scrapbookLine : "";
       if (!scrapbookLine) return null;
       return {
+        // Entries saved by the first Teach Zeb version had no character.
+        character: e.character === "loftus" ? "loftus" : "zeb",
         problemLabel:
           typeof e.problemLabel === "string" ? e.problemLabel : "A problem",
         date: typeof e.date === "string" ? e.date : "",

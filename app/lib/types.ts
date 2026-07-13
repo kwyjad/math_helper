@@ -1,5 +1,7 @@
 // Shared types used by both the client UI and the server API routes.
 
+import type { CompanionId } from "./companions";
+
 /** A single multiple-choice answer option (A, B, C, …). */
 export interface Option {
   /** The option's letter, e.g. "A". */
@@ -89,6 +91,8 @@ export interface TeachbackProblem {
 /** Request body for POST /api/teachback. */
 export interface TeachbackRequest {
   age: number;
+  /** Which companion drives this session: Zeb (taught) or Loftus (caught). */
+  character: CompanionId;
   problem: TeachbackProblem;
   /** Base64 (no data: prefix) of the page image, when available. */
   image?: string;
@@ -97,24 +101,31 @@ export interface TeachbackRequest {
   history: ChatMessage[];
 }
 
-/** Structured reply from POST /api/teachback (Zeb's voice + meter state). */
+/**
+ * Character-agnostic structured reply from POST /api/teachback.
+ * For Zeb, `progress` is how well he understands (0 = lost, 100 = got it).
+ * For Sir Loftus, `progress` is how thoroughly he's been corrected
+ * (0 = peak arrogance, 100 = fully conceded). `done` = session succeeded.
+ */
 export interface TeachbackResponse {
-  /** Zeb's reply, in his voice; math in \( \) LaTeX. */
-  zebSays: string;
-  /** 0–100, how well Zeb understands so far. */
-  understanding: number;
-  /** True once he's fully learned it. */
-  gotIt: boolean;
-  /** When gotIt is true, one short line in Zeb's voice; else "". */
+  /** The companion's reply, in their voice; math in \( \) LaTeX. */
+  says: string;
+  /** 0–100 progress toward the session's success condition. */
+  progress: number;
+  /** True once the session has succeeded. */
+  done: boolean;
+  /** When done is true, one short line in the companion's voice; else "". */
   scrapbookLine: string;
 }
 
-/** One keepsake entry in Zeb's Scrapbook (persisted in localStorage). */
+/** One keepsake entry in the Scrapbook (persisted in localStorage). */
 export interface ScrapbookEntry {
+  /** Which companion this page is about. */
+  character: CompanionId;
   /** The problem's label or position, e.g. "Problem 4a". */
   problemLabel: string;
-  /** ISO date string of when it was taught. */
+  /** ISO date string of when it was taught/caught. */
   date: string;
-  /** Zeb's goofy one-liner about what he learned. */
+  /** The companion's goofy one-liner about what got learned/sorted out. */
   scrapbookLine: string;
 }

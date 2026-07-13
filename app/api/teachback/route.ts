@@ -1,12 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import {
   MODEL,
-  ZEB_KICKOFF,
-  buildZebSystemPrompt,
+  TEACHBACK_KICKOFF,
+  buildTeachbackSystemPrompt,
   classifyError,
   getClient,
   withBackoff,
 } from "@/app/lib/gemini";
+import type { CompanionId } from "@/app/lib/companions";
 import type { Option, TeachbackRequest, TeachbackResponse } from "@/app/lib/types";
 
 export const runtime = "nodejs";
@@ -37,6 +38,8 @@ function validate(body: unknown): TeachbackRequest | null {
 
   if (typeof b.age !== "number" || !Number.isFinite(b.age)) return null;
 
+  const character: CompanionId = b.character === "loftus" ? "loftus" : "zeb";
+
   const problem = b.problem as Record<string, unknown> | undefined;
   if (!problem || typeof problem.text !== "string") return null;
 
@@ -44,6 +47,7 @@ function validate(body: unknown): TeachbackRequest | null {
 
   return {
     age: b.age,
+    character,
     problem: {
       text: problem.text,
       latex: typeof problem.latex === "string" ? problem.latex : "",
@@ -102,8 +106,8 @@ function clamp(n: number): number {
   return Math.max(0, Math.min(100, Math.round(n)));
 }
 
-/** Parse Zeb's structured JSON reply, defaulting each field defensively. */
-function parseZeb(text: string): TeachbackResponse | null {
+/** Parse the companion's structured JSON reply, defaulting each field. */
+function parseReply(text: string): TeachbackResponse | null {
   let obj: unknown;
   try {
     obj = JSON.parse(stripFences(text));
@@ -112,15 +116,15 @@ function parseZeb(text: string): TeachbackResponse | null {
   }
   if (typeof obj !== "object" || obj === null) return null;
   const o = obj as Record<string, unknown>;
-  const zebSays = typeof o.zebSays === "string" ? o.zebSays : "";
-  if (!zebSays.trim()) return null;
-  const understanding = clamp(
-    typeof o.understanding === "number" ? o.understanding : Number(o.understanding)
+  const says = typeof o.says === "string" ? o.says : "";
+  if (!says.trim()) return null;
+  const progress = clamp(
+    typeof o.progress === "number" ? o.progress : Number(o.progress)
   );
-  const gotIt = o.gotIt === true;
+  const done = o.done === true;
   const scrapbookLine =
-    gotIt && typeof o.scrapbookLine === "string" ? o.scrapbookLine : "";
-  return { zebSays, understanding, gotIt, scrapbookLine };
+    done && typeof o.scrapbookLine === "string" ? o.scrapbookLine : "";
+  return { says, progress, done, scrapbookLine };
 }
 
 export async function POST(req: NextRequest) {
@@ -139,20 +143,25 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  const systemInstruction = buildZebSystemPrompt(
+  const systemInstruction = buildTeachbackSystemPrompt(
+    data.character,
     data.age,
     data.problem.text,
     data.problem.latex,
     data.problem.options
   );
 
-  // Zeb speaks first, but Gemini requires the conversation to start with a user
-  // turn — so prepend a synthetic kickoff turn (never shown in the client chat)
-  // carrying the page image, then map the real chat history after it.
+  // The companion speaks first, but Gemini requires the conversation to start
+  // with a user turn — so prepend a synthetic kickoff turn (never shown in the
+  // client chat) carrying the page image, then map the real chat history after.
   const contents: Content[] = [
     {
       role: "user",
-      parts: withImage([{ text: ZEB_KICKOFF }], data.image, data.imageMimeType),
+      parts: withImage(
+        [{ text: TEACHBACK_KICKOFF[data.character] }],
+        data.image,
+        data.imageMimeType
+      ),
     },
     ...data.history.map((m) => ({
       role: (m.role === "assistant" ? "model" : "user") as "user" | "model",
@@ -176,10 +185,10 @@ export async function POST(req: NextRequest) {
       })
     );
 
-    const parsed = parseZeb(response.text ?? "");
+    const parsed = parseReply(response.text ?? "");
     if (!parsed) {
       return NextResponse.json(
-        { error: "Zeb got a bit distracted. Try again." },
+        { error: "The companion got a bit distracted. Try again." },
         { status: 502 }
       );
     }
