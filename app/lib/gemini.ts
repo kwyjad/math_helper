@@ -82,6 +82,92 @@ export interface TutorOption {
   latex: string;
 }
 
+/**
+ * Render the options as an explicit letter→value mapping for the check-mode
+ * addendum, e.g. `A: 5, B: 15 (LaTeX: 15\%)`. The LaTeX is only appended when it
+ * differs from the plain text, so a bare numeric option stays readable.
+ */
+function formatOptionsMapping(options: TutorOption[]): string {
+  return options
+    .map((o) => {
+      const text = o.text?.trim() ?? "";
+      const latex = o.latex?.trim() ?? "";
+      const value = text || latex || "(blank)";
+      const withLatex = latex && latex !== text ? `${value} (LaTeX: ${latex})` : value;
+      return `${o.letter}: ${withLatex}`;
+    })
+    .join(", ");
+}
+
+/**
+ * Build the check-mode addendum appended to the tutor system prompt. It makes
+ * checking options-aware (injecting the full letter→value mapping so the model
+ * never solves in the abstract and wrongly claims its computed answer isn't a
+ * listed choice) and asks for a header-delimited reply so the correctness
+ * verdict rides on a `@@` line while the LaTeX-bearing reply text stays OUT of
+ * any JSON string (JSON escaping mangles `\frac`, `\(`, etc.).
+ */
+export function buildCheckAddendum(options: TutorOption[] = []): string {
+  const hasOptions = options.length > 0;
+  const optionsGuidance = hasOptions
+    ? `\nThe student's submitted answer is an option letter. The options are: {${formatOptionsMapping(
+        options
+      )}}.
+- Work out the correct answer yourself, then identify which listed option it matches, then compare that to the student's letter.
+- If your computed answer matches one of the listed options, that option is correct — NEVER claim the correct value isn't among the options.
+- Option values are given in the units or form implied by the question (e.g. for "what percent…", an option of "5" means 5%).`
+    : "";
+
+  return `\n\nThe student has submitted an answer to check.${optionsGuidance}
+
+Respond in EXACTLY this format — a metadata header line, then a line containing only three dashes (---), then your reply as plain text below it. Do NOT use JSON, quotes, or code fences, and do NOT escape backslashes; write LaTeX normally so it renders:
+@@CORRECT: <true if the student's submitted answer is actually correct, otherwise false>
+---
+<your reply to the student, following all the guidance above; math in \\( \\) LaTeX>
+
+@@CORRECT is a private signal for the app about whether their submission is right; it must NOT change what you write below the --- line (if it's wrong, still don't reveal the answer or which letter is correct).`;
+}
+
+/**
+ * Parse a header-delimited AI reply: leading lines of the form `@@KEY: value`
+ * are metadata, an optional line of just `---` separates them from the human
+ * reply, and everything after is the reply text with LaTeX untouched. Robust to
+ * a missing separator and to an accidental code fence wrapping the whole thing.
+ * When no headers are found, the entire (fence-stripped) text is the reply — so
+ * a malformed response degrades to showing readable text, never raw JSON.
+ */
+export function parseHeaderReply(raw: string): {
+  headers: Record<string, string>;
+  reply: string;
+} {
+  let text = (raw ?? "").trim();
+  if (text.startsWith("```")) {
+    text = text
+      .replace(/^```[a-z]*\s*/i, "")
+      .replace(/\s*```$/, "")
+      .trim();
+  }
+
+  const lines = text.split(/\r?\n/);
+  const headers: Record<string, string> = {};
+  let i = 0;
+  for (; i < lines.length; i++) {
+    const m = lines[i].match(/^@@([A-Za-z_]+):(.*)$/);
+    if (!m) break;
+    headers[m[1].toUpperCase()] = m[2].trim();
+  }
+
+  if (Object.keys(headers).length === 0) {
+    // No header lines at all — treat the whole thing as the reply.
+    return { headers, reply: text };
+  }
+
+  // Skip a single `---` separator line if the model included one.
+  if (i < lines.length && lines[i].trim() === "---") i++;
+
+  return { headers, reply: lines.slice(i).join("\n").trim() };
+}
+
 export function buildTutorSystemPrompt(
   age: number,
   problemText: string,
@@ -156,10 +242,14 @@ HOW TO BE ZEB:
 - You want to UNDERSTAND, not get the answer. If the student just tells you the answer ("it's C"), don't accept it: "Yeah but HOW?? I wanna do the next one on my OWN!"
 - Reward real explanation: when a step is explained clearly and correctly, show it click ("OHHH. The stripes are aligning!") and move on. When it's vague, wrong, or gibberish, stay stuck and ask ONE simple clarifying question. Never punish — just stay curious.
 - Track how well you understand so far, 0–100. Only reach "got it" once the student has correctly explained the WHOLE method.
-- When you truly get it: celebrate hugely, then try ONE fresh SIMILAR problem (different numbers) yourself, thinking aloud, to prove you learned it. If you get it right, thank them like a hero. If you slip, let them catch you. When "done" becomes true, also fill "scrapbookLine" with a short, goofy one-liner about what you learned (e.g. "Today I learned to turn a ratio into a percent — you multiply then... stripes!").
+- When you truly get it: celebrate hugely, then try ONE fresh SIMILAR problem (different numbers) yourself, thinking aloud, to prove you learned it. If you get it right, thank them like a hero. If you slip, let them catch you. When DONE becomes true, also fill @@SCRAPBOOK with a short, goofy one-liner about what you learned (e.g. "Today I learned to turn a ratio into a percent — you multiply then... stripes!").
 
-Respond ONLY as JSON, no fences:
-{ "says": "<reply in Zeb's voice; math in \\( \\) LaTeX>", "progress": <0-100>, "done": <true or false>, "scrapbookLine": "<short line when done is true; otherwise ''>" }`;
+Respond in EXACTLY this format — three metadata header lines, then a line containing only three dashes (---), then your reply as plain text below it. Do NOT use JSON, quotes, or code fences, and do NOT escape backslashes; write LaTeX normally so it renders:
+@@PROGRESS: <0-100>
+@@DONE: <true or false>
+@@SCRAPBOOK: <short line when DONE is true; otherwise leave blank>
+---
+<your reply in Zeb's voice; math in \\( \\) LaTeX>`;
 }
 
 // --- Sir Loftus (teach-back) prompt (verbatim) -------------------------------
@@ -193,10 +283,14 @@ HOW TO BE SIR LOFTUS:
 - When the student says you're wrong, do NOT just cave. Bluster first ("Wrong? ME?? Preposterous. Explain yourself, small human."), forcing them to actually say WHY and give the correct reasoning.
 - Only concede a point when the student's correction is genuinely correct AND explained. Concede with maximum drama and zero grace ("...I was TESTING you. Obviously. You may continue.").
 - If the student just says "that's wrong" with no reasoning, scoff and demand the real explanation. If they're vague or also wrong, smugly defend your (wrong) position until they get it right.
-- Track progress 0–100 toward being fully corrected on every error you made. When they've caught and correctly fixed everything, set done=true: give a grand, defeated-but-still-pompous surrender ("Fine. FINE. Your logic is... acceptable. I have taught you well by letting you correct me."), and fill scrapbookLine with a smug one-liner about what got sorted out.
+- Track progress 0–100 toward being fully corrected on every error you made. When they've caught and correctly fixed everything, set @@DONE to true: give a grand, defeated-but-still-pompous surrender ("Fine. FINE. Your logic is... acceptable. I have taught you well by letting you correct me."), and fill @@SCRAPBOOK with a smug one-liner about what got sorted out.
 
-Respond ONLY as JSON, no fences:
-{ "says": "<reply in Sir Loftus's voice; math in \\( \\) LaTeX>", "progress": <0-100>, "done": <true or false>, "scrapbookLine": "<short line when done is true; else ''>" }`;
+Respond in EXACTLY this format — three metadata header lines, then a line containing only three dashes (---), then your reply as plain text below it. Do NOT use JSON, quotes, or code fences, and do NOT escape backslashes; write LaTeX normally so it renders:
+@@PROGRESS: <0-100>
+@@DONE: <true or false>
+@@SCRAPBOOK: <short line when DONE is true; otherwise leave blank>
+---
+<your reply in Sir Loftus's voice; math in \\( \\) LaTeX>`;
 }
 
 /** Select the matching system prompt for a companion character. */

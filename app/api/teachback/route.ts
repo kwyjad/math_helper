@@ -5,6 +5,7 @@ import {
   buildTeachbackSystemPrompt,
   classifyError,
   getClient,
+  parseHeaderReply,
   withBackoff,
 } from "@/app/lib/gemini";
 import type { CompanionId } from "@/app/lib/companions";
@@ -89,41 +90,24 @@ function withImage(
   ];
 }
 
-/** Strip accidental ```json fences the model may add despite JSON mode. */
-function stripFences(text: string): string {
-  const trimmed = text.trim();
-  if (trimmed.startsWith("```")) {
-    return trimmed
-      .replace(/^```(?:json)?\s*/i, "")
-      .replace(/\s*```$/, "")
-      .trim();
-  }
-  return trimmed;
-}
-
 function clamp(n: number): number {
   if (!Number.isFinite(n)) return 0;
   return Math.max(0, Math.min(100, Math.round(n)));
 }
 
-/** Parse the companion's structured JSON reply, defaulting each field. */
+/**
+ * Parse the companion's header-delimited reply. `@@PROGRESS`, `@@DONE` and
+ * `@@SCRAPBOOK` ride on header lines; the spoken reply (with LaTeX) is the plain
+ * text below the `---` separator, so it never passes through JSON escaping.
+ * Returns null only when there's no reply text to show.
+ */
 function parseReply(text: string): TeachbackResponse | null {
-  let obj: unknown;
-  try {
-    obj = JSON.parse(stripFences(text));
-  } catch {
-    return null;
-  }
-  if (typeof obj !== "object" || obj === null) return null;
-  const o = obj as Record<string, unknown>;
-  const says = typeof o.says === "string" ? o.says : "";
-  if (!says.trim()) return null;
-  const progress = clamp(
-    typeof o.progress === "number" ? o.progress : Number(o.progress)
-  );
-  const done = o.done === true;
-  const scrapbookLine =
-    done && typeof o.scrapbookLine === "string" ? o.scrapbookLine : "";
+  const { headers, reply } = parseHeaderReply(text);
+  const says = reply.trim();
+  if (!says) return null;
+  const progress = clamp(Number(headers.PROGRESS));
+  const done = headers.DONE?.toLowerCase() === "true";
+  const scrapbookLine = done ? (headers.SCRAPBOOK ?? "").trim() : "";
   return { says, progress, done, scrapbookLine };
 }
 
@@ -177,8 +161,9 @@ export async function POST(req: NextRequest) {
         model: MODEL,
         contents,
         config: {
+          // The companion returns metadata on `@@` header lines with the spoken
+          // reply as plain text below — NOT JSON, which would mangle the LaTeX.
           systemInstruction,
-          responseMimeType: "application/json",
           maxOutputTokens: 600,
           temperature: 0.9,
         },
