@@ -15,6 +15,10 @@ export default function TutorView({
   history,
   onHistoryChange,
   onBack,
+  companionEnabled = false,
+  solved = false,
+  onSolved,
+  onTeach,
 }: {
   problem: Problem;
   index: number;
@@ -23,6 +27,14 @@ export default function TutorView({
   history: ChatMessage[];
   onHistoryChange: (next: ChatMessage[]) => void;
   onBack: () => void;
+  /** Whether a companion is chosen (teach-back offered at all). */
+  companionEnabled?: boolean;
+  /** Whether this problem has already been solved (retains a teach button). */
+  solved?: boolean;
+  /** Called when the tutor confirms a correct answer. */
+  onSolved?: () => void;
+  /** Called to open the teach-back view for this problem. */
+  onTeach?: () => void;
 }) {
   const [input, setInput] = useState("");
   const [answer, setAnswer] = useState("");
@@ -32,6 +44,8 @@ export default function TutorView({
   const [imageExpanded, setImageExpanded] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // Optional teach-back invitation, shown right after a correct answer.
+  const [showInvite, setShowInvite] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
 
   const isMultipleChoice = problem.options.length > 0;
@@ -80,6 +94,12 @@ export default function TutorView({
         ...nextHistory,
         { role: "assistant", content: data.reply as string },
       ]);
+      // If the tutor confirmed a correct answer, mark it solved and (when a
+      // companion is chosen) surface the optional teach-back invitation.
+      if (mode === "check" && data.correct === true) {
+        onSolved?.();
+        if (companionEnabled) setShowInvite(true);
+      }
     } catch {
       setError("Couldn't reach the tutor. Check your connection and retry.");
     } finally {
@@ -167,10 +187,50 @@ export default function TutorView({
         >
           ← Back to list
         </button>
-        <span className="text-sm font-semibold text-text-muted">
-          {problem.label ? `Problem ${problem.label}` : `Problem ${index + 1}`}
-        </span>
+        <div className="flex items-center gap-2">
+          {companionEnabled && solved && onTeach && (
+            <button
+              type="button"
+              onClick={onTeach}
+              className="rounded-md border border-accent px-3 py-2 text-sm font-medium text-accent transition-colors hover:bg-accent/10 focus:outline-none focus:ring-2 focus:ring-accent/40"
+            >
+              🦓 Teach Zeb
+            </button>
+          )}
+          <span className="text-sm font-semibold text-text-muted">
+            {problem.label ? `Problem ${problem.label}` : `Problem ${index + 1}`}
+          </span>
+        </div>
       </div>
+
+      {/* Optional teach-back invitation after a correct answer. Easy to decline;
+          declining or leaving never blocks anything. */}
+      {companionEnabled && showInvite && onTeach && (
+        <div className="flex flex-col gap-3 rounded-lg border border-accent/40 bg-accent/5 p-4 sm:flex-row sm:items-center sm:justify-between">
+          <p className="font-medium">
+            Nice work! Want to teach Zeb how you did it? 🦓
+          </p>
+          <div className="flex gap-2">
+            <button
+              type="button"
+              onClick={() => {
+                setShowInvite(false);
+                onTeach();
+              }}
+              className="rounded-md bg-accent px-4 py-2 font-medium text-primary-contrast transition-opacity hover:opacity-90 focus:outline-none focus:ring-2 focus:ring-accent/40"
+            >
+              Let&apos;s go
+            </button>
+            <button
+              type="button"
+              onClick={() => setShowInvite(false)}
+              className="rounded-md border border-border px-4 py-2 font-medium transition-colors hover:border-primary focus:outline-none focus:ring-2 focus:ring-primary/40"
+            >
+              Not now
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* The problem being worked on */}
       <div className="rounded-lg border border-border bg-surface p-4">

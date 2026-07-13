@@ -60,3 +60,61 @@ export interface TutorRequest {
   /** MIME type of `answerImage`; defaults to image/jpeg server-side. */
   answerImageMimeType?: string;
 }
+
+/** Response body for POST /api/tutor. */
+export interface TutorResponse {
+  reply: string;
+  /**
+   * In `check` mode only: whether the submitted answer is correct. `null` when
+   * the model's structured verdict couldn't be parsed, or in `hint` mode. Drives
+   * the optional "teach it back" invitation — never revealed to the student.
+   */
+  correct?: boolean | null;
+}
+
+// -----------------------------------------------------------------------------
+// Teach-back (Teach Zeb) types.
+// -----------------------------------------------------------------------------
+
+/** The subset of a Problem the teach-back route needs to build its prompt. */
+export interface TeachbackProblem {
+  text: string;
+  latex: string;
+  options: Option[];
+  hasFigure: boolean;
+  figureDescription: string;
+  table: string;
+}
+
+/** Request body for POST /api/teachback. */
+export interface TeachbackRequest {
+  age: number;
+  problem: TeachbackProblem;
+  /** Base64 (no data: prefix) of the page image, when available. */
+  image?: string;
+  /** MIME type of `image`; defaults to image/jpeg server-side. */
+  imageMimeType?: string;
+  history: ChatMessage[];
+}
+
+/** Structured reply from POST /api/teachback (Zeb's voice + meter state). */
+export interface TeachbackResponse {
+  /** Zeb's reply, in his voice; math in \( \) LaTeX. */
+  zebSays: string;
+  /** 0–100, how well Zeb understands so far. */
+  understanding: number;
+  /** True once he's fully learned it. */
+  gotIt: boolean;
+  /** When gotIt is true, one short line in Zeb's voice; else "". */
+  scrapbookLine: string;
+}
+
+/** One keepsake entry in Zeb's Scrapbook (persisted in localStorage). */
+export interface ScrapbookEntry {
+  /** The problem's label or position, e.g. "Problem 4a". */
+  problemLabel: string;
+  /** ISO date string of when it was taught. */
+  date: string;
+  /** Zeb's goofy one-liner about what he learned. */
+  scrapbookLine: string;
+}

@@ -83,6 +83,44 @@ function validate(body: unknown): TutorRequest | null {
   };
 }
 
+/**
+ * In check mode we ask the model for a small structured verdict alongside its
+ * reply so the app can offer the optional "teach it back" invitation after a
+ * correct answer. The natural-language guidance (never reveal the answer, one
+ * hint at a time, etc.) is unchanged — `correct` only reflects the submission.
+ */
+const CHECK_JSON_ADDENDUM = `\n\nThe student has submitted an answer to check. Respond ONLY as JSON, no fences:
+{ "reply": "<your reply to the student, following all the guidance above; math in \\( \\) LaTeX>", "correct": <true if the submitted answer is actually correct, otherwise false> }
+"correct" is a private signal for the app about whether their submission is right; it must NOT change what you write in "reply" (if it's wrong, still don't reveal the answer or which letter is correct).`;
+
+/** Strip accidental ```json fences the model may add despite JSON mode. */
+function stripFences(text: string): string {
+  const trimmed = text.trim();
+  if (trimmed.startsWith("```")) {
+    return trimmed
+      .replace(/^```(?:json)?\s*/i, "")
+      .replace(/\s*```$/, "")
+      .trim();
+  }
+  return trimmed;
+}
+
+/** Parse the check-mode JSON verdict; fall back to plain text if it isn't JSON. */
+function parseCheckReply(text: string): { reply: string; correct: boolean | null } {
+  try {
+    const obj = JSON.parse(stripFences(text)) as Record<string, unknown>;
+    if (obj && typeof obj.reply === "string" && obj.reply.trim()) {
+      return {
+        reply: obj.reply,
+        correct: typeof obj.correct === "boolean" ? obj.correct : null,
+      };
+    }
+  } catch {
+    // Not JSON — treat the whole thing as the reply.
+  }
+  return { reply: text, correct: null };
+}
+
 /** Prepend the page image to a content's parts so Gemini sees it in context. */
 function withImage(
   parts: (TextPart | ImagePart)[],
@@ -112,12 +150,16 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  const systemInstruction = buildTutorSystemPrompt(
+  const baseInstruction = buildTutorSystemPrompt(
     data.age,
     data.problem.text,
     data.problem.latex,
     data.problem.options
   );
+  // In check mode, ask for a structured { reply, correct } verdict (JSON mode)
+  // so we can offer the optional teach-back invitation after a correct answer.
+  const systemInstruction =
+    data.mode === "check" ? baseInstruction + CHECK_JSON_ADDENDUM : baseInstruction;
 
   // Map the chat history onto Gemini's content format (assistant -> model).
   const contents: Content[] = data.history.map((m) => ({
@@ -169,22 +211,38 @@ export async function POST(req: NextRequest) {
         contents,
         config: {
           systemInstruction,
-          // Keep replies short so functions stay fast and cheap.
+          // Keep replies short so functions stay fast and cheap. In check mode
+          // the reply is wrapped in JSON so we can read the correctness verdict.
           maxOutputTokens: 500,
           temperature: 0.7,
+          ...(data.mode === "check"
+            ? { responseMimeType: "application/json" }
+            : {}),
         },
       })
     );
 
-    const reply = (response.text ?? "").trim();
-    if (!reply) {
+    const rawText = (response.text ?? "").trim();
+    if (!rawText) {
       return NextResponse.json(
         { error: "The tutor didn't have a response. Try rephrasing." },
         { status: 502 }
       );
     }
 
-    return NextResponse.json({ reply });
+    if (data.mode === "check") {
+      const { reply, correct } = parseCheckReply(rawText);
+      const trimmed = reply.trim();
+      if (!trimmed) {
+        return NextResponse.json(
+          { error: "The tutor didn't have a response. Try rephrasing." },
+          { status: 502 }
+        );
+      }
+      return NextResponse.json({ reply: trimmed, correct });
+    }
+
+    return NextResponse.json({ reply: rawText });
   } catch (err) {
     console.error("tutor error:", err);
     const { status, message } = classifyError(err);
