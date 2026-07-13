@@ -2,9 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import {
   EXTRACTION_SYSTEM_PROMPT,
   MODEL,
-  MissingKeyError,
+  classifyError,
   getClient,
-  isRateLimit,
   withBackoff,
 } from "@/app/lib/gemini";
 import type { Problem } from "@/app/lib/types";
@@ -105,25 +104,10 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json({ problems });
   } catch (err) {
-    if (err instanceof MissingKeyError) {
-      return NextResponse.json(
-        { error: "The tutor isn't configured yet (missing API key)." },
-        { status: 500 }
-      );
-    }
-    if (isRateLimit(err)) {
-      return NextResponse.json(
-        {
-          error:
-            "We're getting a lot of requests right now. Wait a moment and try again.",
-        },
-        { status: 429 }
-      );
-    }
+    // Full detail goes to the server logs (visible in Vercel) for diagnosis;
+    // the client gets a specific-but-friendly message from classifyError.
     console.error("extract error:", err);
-    return NextResponse.json(
-      { error: "Something went wrong reading that image. Please try again." },
-      { status: 500 }
-    );
+    const { status, message } = classifyError(err);
+    return NextResponse.json({ error: message }, { status });
   }
 }

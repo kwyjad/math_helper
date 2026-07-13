@@ -90,19 +90,110 @@ Style:
 `;
 }
 
-// --- Rate-limit aware retry --------------------------------------------------
+// --- Error classification & retry --------------------------------------------
+
+/** Best-effort extraction of a numeric HTTP status from an SDK/API error. */
+function getStatus(err: unknown): number | undefined {
+  const e = err as {
+    status?: number;
+    code?: number;
+    response?: { status?: number };
+  };
+  if (typeof e?.status === "number") return e.status;
+  if (typeof e?.code === "number") return e.code;
+  if (typeof e?.response?.status === "number") return e.response.status;
+  // Some SDK errors only carry the status in the message, e.g. "got status: 503".
+  const m = (err as { message?: string })?.message?.match(/\b(4\d\d|5\d\d)\b/);
+  return m ? Number(m[1]) : undefined;
+}
+
+function messageOf(err: unknown): string {
+  return ((err as { message?: string })?.message ?? "").toLowerCase();
+}
 
 /** True when an error looks like an HTTP 429 / rate-limit from the API. */
 export function isRateLimit(err: unknown): boolean {
-  const anyErr = err as { status?: number; code?: number; message?: string };
-  if (anyErr?.status === 429 || anyErr?.code === 429) return true;
-  const msg = (anyErr?.message ?? "").toLowerCase();
+  if (getStatus(err) === 429) return true;
+  const msg = messageOf(err);
   return (
-    msg.includes("429") ||
     msg.includes("rate limit") ||
     msg.includes("resource_exhausted") ||
     msg.includes("quota")
   );
+}
+
+/**
+ * True for errors that are worth retrying: rate limits plus transient upstream
+ * failures. The flash models frequently return 503 "model is overloaded" and
+ * occasional 500 "internal" errors, especially on a cold first request — these
+ * usually succeed on a quick retry.
+ */
+export function isTransient(err: unknown): boolean {
+  if (isRateLimit(err)) return true;
+  const status = getStatus(err);
+  if (status === 500 || status === 502 || status === 503 || status === 504) {
+    return true;
+  }
+  const msg = messageOf(err);
+  return (
+    msg.includes("overloaded") ||
+    msg.includes("unavailable") ||
+    msg.includes("try again") ||
+    msg.includes("deadline") ||
+    msg.includes("internal error")
+  );
+}
+
+/**
+ * Map any thrown error onto a client-safe { status, message } pair. Messages are
+ * specific enough to be self-diagnosing (busy vs. bad image vs. config) without
+ * leaking internals to the student.
+ */
+export function classifyError(err: unknown): { status: number; message: string } {
+  if (err instanceof MissingKeyError) {
+    return {
+      status: 500,
+      message: "The tutor isn't configured yet (missing API key).",
+    };
+  }
+  if (isRateLimit(err)) {
+    return {
+      status: 429,
+      message:
+        "We're getting a lot of requests right now. Wait a moment and try again.",
+    };
+  }
+  const status = getStatus(err);
+  const msg = messageOf(err);
+  if (
+    status === 503 ||
+    status === 500 ||
+    status === 502 ||
+    status === 504 ||
+    msg.includes("overloaded") ||
+    msg.includes("unavailable") ||
+    msg.includes("deadline")
+  ) {
+    return {
+      status: 503,
+      message:
+        "The AI service is busy right now. Give it a few seconds and try again.",
+    };
+  }
+  if (
+    status === 400 &&
+    (msg.includes("image") || msg.includes("inline") || msg.includes("media"))
+  ) {
+    return {
+      status: 422,
+      message:
+        "That image couldn't be processed. Try a clearer, well-lit photo of the page.",
+    };
+  }
+  return {
+    status: 500,
+    message: "Something went wrong reaching the AI service. Please try again.",
+  };
 }
 
 function delay(ms: number): Promise<void> {
@@ -110,14 +201,14 @@ function delay(ms: number): Promise<void> {
 }
 
 /**
- * Run `fn`, retrying on rate-limit errors with exponential backoff.
- * Non-rate-limit errors are thrown immediately. If every attempt is rate
- * limited, the final 429 error is rethrown for the caller to translate.
+ * Run `fn`, retrying transient errors (rate limits + upstream 5xx/overload) with
+ * exponential backoff. Non-transient errors are thrown immediately. The delays
+ * are kept small so the whole call stays comfortably under the function timeout.
  */
 export async function withBackoff<T>(
   fn: () => Promise<T>,
   attempts = 3,
-  baseDelayMs = 800
+  baseDelayMs = 600
 ): Promise<T> {
   let lastErr: unknown;
   for (let i = 0; i < attempts; i++) {
@@ -125,7 +216,7 @@ export async function withBackoff<T>(
       return await fn();
     } catch (err) {
       lastErr = err;
-      if (!isRateLimit(err) || i === attempts - 1) {
+      if (!isTransient(err) || i === attempts - 1) {
         throw err;
       }
       await delay(baseDelayMs * 2 ** i);
