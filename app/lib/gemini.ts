@@ -8,7 +8,11 @@ import { GoogleGenAI } from "@google/genai";
 // are not visible to the client either.
 // -----------------------------------------------------------------------------
 
-export const MODEL = "gemini-2.5-flash";
+// The cheapest generally-available Gemini model that still accepts image input
+// (needed for extraction). Overridable via GEMINI_MODEL so a future model
+// deprecation is a Vercel env change, not a code change. Google markets
+// gemini-3.1-flash-lite as its most cost-effective model.
+export const MODEL = process.env.GEMINI_MODEL || "gemini-3.1-flash-lite";
 
 let client: GoogleGenAI | null = null;
 

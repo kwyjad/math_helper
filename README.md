@@ -13,7 +13,8 @@ place.
 ## Stack
 
 - **Next.js** (App Router) + **React** + **TypeScript**
-- **Google Gemini** (`gemini-2.5-flash`) via the official
+- **Google Gemini** (`gemini-3.1-flash-lite`, the cheapest multimodal model)
+  via the official
   [`@google/genai`](https://www.npmjs.com/package/@google/genai) SDK
 - **KaTeX** for math rendering
 - **Tailwind CSS v4** with a token-driven theme
@@ -37,12 +38,22 @@ exposed to the browser.
 
 ## Required environment variable
 
-| Variable         | Where           | Purpose                                           |
-| ---------------- | --------------- | ------------------------------------------------- |
-| `GEMINI_API_KEY` | **Server only** | Google Gemini API key used by the two API routes. |
+| Variable         | Where               | Purpose                                                                                                    |
+| ---------------- | ------------------- | ---------------------------------------------------------------------------------------------------------- |
+| `GEMINI_API_KEY` | **Server**          | **Required.** Google Gemini API key used by the two API routes.                                            |
+| `GEMINI_MODEL`   | **Server** (opt.)   | Overrides the Gemini model. Defaults to `gemini-3.1-flash-lite`. Set this to swap models without a deploy. |
 
 The key is read server-side only and is **never** exposed to the browser or
 committed to the repo. All `.env*` files are gitignored.
+
+> **Note on models:** Google deprecates and retires Gemini models fairly
+> aggressively (e.g. the `gemini-2.5-flash` family was pulled for new users in
+> mid-2026, returning `404 NOT_FOUND`). The app defaults to the cheapest
+> current multimodal model, `gemini-3.1-flash-lite`. If that model is ever
+> retired, you'll see a clear "AI service" error — just set `GEMINI_MODEL` in
+> Vercel to the current cheapest model (check
+> [Google's model list](https://ai.google.dev/gemini-api/docs/models)) and
+> redeploy; no code change needed.
 
 Get a key from [Google AI Studio](https://aistudio.google.com/apikey).
 
