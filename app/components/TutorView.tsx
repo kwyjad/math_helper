@@ -369,16 +369,35 @@ export default function TutorView({
               </button>
             </div>
           ) : (
-            <label className="inline-flex w-fit cursor-pointer items-center gap-2 rounded-md border border-border bg-bg px-4 py-2 text-sm font-medium transition-colors hover:border-accent">
-              <span>📎 Attach a photo of your work</span>
-              <input
-                type="file"
-                accept="image/*"
-                onChange={pickAnswerFile}
-                disabled={loading}
-                className="sr-only"
-              />
-            </label>
+            <div className="flex flex-wrap gap-2">
+              {/* Take a new photo: on a phone or tablet this opens the camera
+                  directly; on a computer with no camera it falls back to the
+                  file picker. */}
+              <label className="inline-flex w-fit cursor-pointer items-center gap-2 rounded-md border border-border bg-bg px-4 py-2 text-sm font-medium transition-colors hover:border-accent">
+                <span>📷 Take a photo</span>
+                <input
+                  type="file"
+                  accept="image/*"
+                  capture="environment"
+                  onChange={pickAnswerFile}
+                  disabled={loading}
+                  className="sr-only"
+                />
+              </label>
+              {/* Choose an existing image: Windows folders, Apple Photos/Files
+                  on iPhone/iPad, or the gallery/files on Android. No `capture`,
+                  so the OS shows the full chooser. */}
+              <label className="inline-flex w-fit cursor-pointer items-center gap-2 rounded-md border border-border bg-bg px-4 py-2 text-sm font-medium transition-colors hover:border-accent">
+                <span>🖼️ Choose a photo</span>
+                <input
+                  type="file"
+                  accept="image/*"
+                  onChange={pickAnswerFile}
+                  disabled={loading}
+                  className="sr-only"
+                />
+              </label>
+            </div>
           )}
           <p className="text-xs text-text-muted">
             Drawing or working on paper? Snap a photo and the tutor will look at

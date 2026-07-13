@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useState } from "react";
 import type { Problem } from "../lib/types";
 import type { StoredImage } from "../lib/storage";
 import { prepareImage } from "../lib/image";
@@ -19,7 +19,6 @@ export default function UploadStep({
   ) => void;
   onCancel?: () => void;
 }) {
-  const inputRef = useRef<HTMLInputElement>(null);
   const [preview, setPreview] = useState<string | null>(null);
   const [file, setFile] = useState<File | null>(null);
   const [mode, setMode] = useState<"replace" | "append">(
@@ -87,8 +86,12 @@ export default function UploadStep({
       </div>
 
       <div className="flex flex-col gap-4">
+        {/* Choose an existing image: on Windows this browses folders; on an
+            iPhone/iPad it opens Apple Photos or Files; on Android it opens the
+            gallery/files. No `capture` attribute, so the OS shows the full
+            chooser rather than jumping straight to the camera. */}
         <label
-          htmlFor="photo"
+          htmlFor="photo-library"
           className="flex cursor-pointer flex-col items-center justify-center gap-2 rounded-lg border-2 border-dashed border-border bg-surface px-4 py-10 text-center transition-colors hover:border-primary"
         >
           {preview ? (
@@ -100,15 +103,32 @@ export default function UploadStep({
             />
           ) : (
             <>
-              <span className="text-lg font-medium">Tap to choose a photo</span>
+              <span className="text-lg font-medium">Choose a photo</span>
               <span className="text-sm text-text-muted">
-                or take one with your camera
+                From your files (Windows) or your photo library (iPhone, iPad,
+                Android)
               </span>
             </>
           )}
           <input
-            id="photo"
-            ref={inputRef}
+            id="photo-library"
+            type="file"
+            accept="image/*"
+            onChange={handleFile}
+            className="sr-only"
+          />
+        </label>
+
+        {/* Take a new photo: on a phone or tablet `capture="environment"`
+            opens the rear camera directly. On a computer with no camera the
+            browser simply falls back to the file picker, so nothing breaks. */}
+        <label
+          htmlFor="photo-camera"
+          className="flex cursor-pointer items-center justify-center gap-2 rounded-md border border-border bg-surface px-4 py-3 font-medium transition-colors hover:border-primary"
+        >
+          <span>📷 Take a photo</span>
+          <input
+            id="photo-camera"
             type="file"
             accept="image/*"
             capture="environment"
