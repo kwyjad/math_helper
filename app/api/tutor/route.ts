@@ -6,12 +6,29 @@ import {
   getClient,
   withBackoff,
 } from "@/app/lib/gemini";
-import type { TutorRequest } from "@/app/lib/types";
+import type { Option, TutorRequest } from "@/app/lib/types";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
 
-type Content = { role: "user" | "model"; parts: { text: string }[] };
+type TextPart = { text: string };
+type ImagePart = { inlineData: { mimeType: string; data: string } };
+type Content = { role: "user" | "model"; parts: (TextPart | ImagePart)[] };
+
+/** Coerce an unknown `options` value into a clean Option[] (or [] if absent). */
+function parseOptions(raw: unknown): Option[] {
+  if (!Array.isArray(raw)) return [];
+  return raw
+    .map((item): Option | null => {
+      const obj = (item ?? {}) as Record<string, unknown>;
+      const letter = typeof obj.letter === "string" ? obj.letter : "";
+      const text = typeof obj.text === "string" ? obj.text : "";
+      const latex = typeof obj.latex === "string" ? obj.latex : "";
+      if (!letter && !text && !latex) return null;
+      return { letter, text, latex };
+    })
+    .filter((o): o is Option => o !== null);
+}
 
 function validate(body: unknown): TutorRequest | null {
   if (typeof body !== "object" || body === null) return null;
@@ -30,7 +47,17 @@ function validate(body: unknown): TutorRequest | null {
     problem: {
       text: problem.text,
       latex: typeof problem.latex === "string" ? problem.latex : "",
+      options: parseOptions(problem.options),
+      hasFigure: problem.hasFigure === true,
+      figureDescription:
+        typeof problem.figureDescription === "string"
+          ? problem.figureDescription
+          : "",
+      table: typeof problem.table === "string" ? problem.table : "",
     },
+    image: typeof b.image === "string" && b.image ? b.image : undefined,
+    imageMimeType:
+      typeof b.imageMimeType === "string" ? b.imageMimeType : undefined,
     history: (b.history as unknown[])
       .filter(
         (m): m is { role: "user" | "assistant"; content: string } =>
@@ -46,6 +73,19 @@ function validate(body: unknown): TutorRequest | null {
     submittedAnswer:
       typeof b.submittedAnswer === "string" ? b.submittedAnswer : undefined,
   };
+}
+
+/** Prepend the page image to a content's parts so Gemini sees it in context. */
+function withImage(
+  parts: (TextPart | ImagePart)[],
+  image: string | undefined,
+  mimeType: string | undefined
+): (TextPart | ImagePart)[] {
+  if (!image) return parts;
+  return [
+    { inlineData: { mimeType: mimeType || "image/jpeg", data: image } },
+    ...parts,
+  ];
 }
 
 export async function POST(req: NextRequest) {
@@ -67,7 +107,8 @@ export async function POST(req: NextRequest) {
   const systemInstruction = buildTutorSystemPrompt(
     data.age,
     data.problem.text,
-    data.problem.latex
+    data.problem.latex,
+    data.problem.options
   );
 
   // Map the chat history onto Gemini's content format (assistant -> model).
@@ -94,6 +135,13 @@ export async function POST(req: NextRequest) {
       { status: 400 }
     );
   }
+
+  // Attach the page image (diagram/table) to the first user turn so the tutor
+  // can read figures the text alone can't convey. Gemini is multimodal.
+  contents[0] = {
+    ...contents[0],
+    parts: withImage(contents[0].parts, data.image, data.imageMimeType),
+  };
 
   try {
     const ai = getClient();

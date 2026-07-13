@@ -6,7 +6,7 @@ import {
   getClient,
   withBackoff,
 } from "@/app/lib/gemini";
-import type { Problem } from "@/app/lib/types";
+import type { Option, Problem } from "@/app/lib/types";
 
 export const runtime = "nodejs";
 // Keep well under Vercel Hobby's function timeout.
@@ -40,8 +40,29 @@ function parseProblems(raw: string): Problem[] {
       label: typeof obj.label === "string" ? obj.label : "",
       text: typeof obj.text === "string" ? obj.text : "",
       latex: typeof obj.latex === "string" ? obj.latex : "",
+      options: parseOptions(obj.options),
+      hasFigure: obj.hasFigure === true,
+      figureDescription:
+        typeof obj.figureDescription === "string" ? obj.figureDescription : "",
+      table: typeof obj.table === "string" ? obj.table : "",
     };
   });
+}
+
+/** Coerce the model's `options` field into a clean Option[] (or [] if absent). */
+function parseOptions(raw: unknown): Option[] {
+  if (!Array.isArray(raw)) return [];
+  return raw
+    .map((item): Option | null => {
+      const obj = (item ?? {}) as Record<string, unknown>;
+      const letter = typeof obj.letter === "string" ? obj.letter : "";
+      const text = typeof obj.text === "string" ? obj.text : "";
+      const latex = typeof obj.latex === "string" ? obj.latex : "";
+      // Drop entries with no usable content.
+      if (!letter && !text && !latex) return null;
+      return { letter, text, latex };
+    })
+    .filter((o): o is Option => o !== null);
 }
 
 export async function POST(req: NextRequest) {
