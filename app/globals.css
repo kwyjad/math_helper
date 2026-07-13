@@ -1,0 +1,107 @@
+@import "tailwindcss";
+@import "katex/dist/katex.min.css";
+
+/*
+ * ---------------------------------------------------------------------------
+ * Design tokens
+ * ---------------------------------------------------------------------------
+ * All theming lives here. Components reference only the semantic Tailwind
+ * utilities generated from these tokens (e.g. `bg-surface`, `text-muted`,
+ * `border-border`) — never raw hex values or magic numbers.
+ *
+ * To re-skin the app later, edit the raw values in `:root` below. Dark mode
+ * is intentionally NOT enabled yet, but the structure is ready: uncomment the
+ * `.dark` block and override the same variables.
+ * ---------------------------------------------------------------------------
+ */
+
+:root {
+  /* Colors */
+  --bg: #f6f7f9;
+  --surface: #ffffff;
+  --text: #1b1f27;
+  --text-muted: #5b6472;
+  --border: #e3e6eb;
+  --primary: #2f5bd7;
+  --primary-contrast: #ffffff;
+  --accent: #6741d9;
+  --success: #2f9e44;
+  --error: #d93636;
+
+  /* Typography — one system sans stack for now */
+  --font-sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto,
+    Helvetica, Arial, sans-serif;
+}
+
+/*
+ * Dark mode is NOT enabled in this version. When it is, override tokens here:
+ *
+ * .dark {
+ *   --bg: #12141a;
+ *   --surface: #1b1f27;
+ *   --text: #f2f4f7;
+ *   --text-muted: #9aa3b2;
+ *   --border: #2c313b;
+ *   --primary: #5b7cf0;
+ *   --primary-contrast: #ffffff;
+ *   --accent: #9775fa;
+ *   --success: #51cf66;
+ *   --error: #ff6b6b;
+ * }
+ */
+
+/*
+ * Map raw tokens onto Tailwind's theme namespace. `@theme inline` lets the
+ * generated utilities (bg-*, text-*, border-*, etc.) resolve through the CSS
+ * variables above, so a `.dark` override flows through automatically.
+ */
+@theme inline {
+  --color-bg: var(--bg);
+  --color-surface: var(--surface);
+  --color-text: var(--text);
+  --color-text-muted: var(--text-muted);
+  --color-border: var(--border);
+  --color-primary: var(--primary);
+  --color-primary-contrast: var(--primary-contrast);
+  --color-accent: var(--accent);
+  --color-success: var(--success);
+  --color-error: var(--error);
+
+  --font-sans: var(--font-sans);
+
+  /* Type scale */
+  --text-xs: 0.8125rem;
+  --text-sm: 0.9375rem;
+  --text-base: 1rem;
+  --text-lg: 1.1875rem;
+  --text-xl: 1.4375rem;
+  --text-2xl: 1.75rem;
+
+  /* Spacing scale (base unit; Tailwind multiplies this) */
+  --spacing: 0.25rem;
+
+  /* Radius scale */
+  --radius-sm: 0.375rem;
+  --radius-md: 0.625rem;
+  --radius-lg: 1rem;
+  --radius-full: 9999px;
+}
+
+html {
+  color-scheme: light;
+}
+
+body {
+  background-color: var(--color-bg);
+  color: var(--color-text);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+/* Give KaTeX display math room to scroll horizontally on small screens. */
+.katex-display {
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding-block: 0.25rem;
+}
