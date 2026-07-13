@@ -6,6 +6,7 @@ import type { StoredImage, TeachbackSession } from "../lib/storage";
 import type { Accessory } from "../lib/accessories";
 import { type Companion, levelFor } from "../lib/companions";
 import MathText from "./MathText";
+import CharacterBust from "./CharacterBust";
 import { OptionsList, TableBlock } from "./ProblemExtras";
 
 function Meter({
@@ -21,13 +22,17 @@ function Meter({
   const band = companion.bands[level];
   const pct = done ? 100 : Math.max(0, Math.min(100, progress));
   return (
-    <div className="flex flex-col gap-1">
+    <div className="flex flex-col gap-2">
       <div className="flex items-center justify-between text-sm">
-        <span className="font-medium text-text-muted">{companion.meterTitle}</span>
-        <span className={`font-semibold ${band.text}`}>{band.label}</span>
+        <span className="font-medium text-text-muted">
+          {companion.meterTitle}
+        </span>
+        <span className={`font-heading font-semibold ${band.text}`}>
+          {band.label}
+        </span>
       </div>
       <div
-        className="h-3 w-full overflow-hidden rounded-full bg-bg"
+        className="h-3.5 w-full overflow-hidden rounded-full bg-surface-tint ring-1 ring-border/60"
         role="progressbar"
         aria-valuenow={pct}
         aria-valuemin={0}
@@ -35,53 +40,21 @@ function Meter({
         aria-label={companion.meterTitle}
       >
         <div
-          className={`h-full rounded-full transition-all duration-500 ${band.bar}`}
+          className="h-full rounded-full bg-gradient-to-r from-primary to-primary-hover transition-[width] duration-500 ease-out motion-reduce:transition-none"
           style={{ width: `${pct}%` }}
         />
       </div>
-    </div>
-  );
-}
-
-function Avatar({
-  companion,
-  progress,
-  done,
-  accessory,
-}: {
-  companion: Companion;
-  progress: number;
-  done: boolean;
-  accessory: Accessory | null;
-}) {
-  const level = levelFor(progress, done);
-  const mood = companion.moods[level];
-  return (
-    <div className="flex items-center gap-4">
-      <div
-        className={`relative flex h-20 w-20 shrink-0 items-center justify-center rounded-full bg-surface text-4xl ring-4 ${mood.ring} ${
-          level === 3 ? "animate-bounce" : ""
-        }`}
-        aria-label={`${companion.name}: ${mood.caption}`}
-        title={mood.caption}
-      >
-        <span aria-hidden>{companion.emoji}</span>
-        {accessory && (
+      {/* Four evenly-spaced band ticks, mirroring the meter's four levels. */}
+      <div className="flex justify-between px-0.5 text-[0.65rem] font-medium text-text-muted">
+        {companion.bands.map((b, i) => (
           <span
-            className="absolute -right-1 -top-1 rounded-full bg-bg px-1 text-lg shadow-sm"
-            title={accessory.label}
-            aria-label={`wearing ${accessory.label}`}
+            key={i}
+            className={i === level ? "text-primary" : undefined}
+            aria-hidden
           >
-            {accessory.emoji}
+            •
           </span>
-        )}
-      </div>
-      <div className="flex flex-col">
-        <span className="text-lg font-semibold">{companion.name}</span>
-        <span className="text-sm text-text-muted">
-          <span aria-hidden>{mood.face} </span>
-          {mood.caption}
-        </span>
+        ))}
       </div>
     </div>
   );
@@ -117,6 +90,8 @@ export default function TeachbackView({
   const openerRequested = useRef(false);
 
   const { history, progress, done } = session;
+  const level = levelFor(progress, done);
+  const mood = companion.moods[level];
   const problemLabel = problem.label
     ? `Problem ${problem.label}`
     : `Problem ${index + 1}`;
@@ -198,26 +173,42 @@ export default function TeachbackView({
   }
 
   return (
-    <section className="mx-auto flex max-w-2xl flex-col gap-4">
-      {/* Header: avatar + always-visible cheerful exit */}
-      <div className="flex items-start justify-between gap-3">
-        <Avatar
-          companion={companion}
-          progress={progress}
-          done={done}
-          accessory={accessory}
-        />
+    <section className="mx-auto flex max-w-2xl flex-col gap-5">
+      {/* Always-visible cheerful exit. */}
+      <div className="flex items-center justify-between gap-3">
+        <span className="text-sm font-semibold text-text-muted">
+          {companion.actionVerb} {companion.name}
+        </span>
         <button
           type="button"
           onClick={onExit}
-          className="shrink-0 rounded-md border border-border px-3 py-2 text-sm font-medium transition-colors hover:border-primary focus:outline-none focus:ring-2 focus:ring-primary/40"
+          className="press shrink-0 rounded-md border border-border bg-surface px-3 py-2 text-sm font-medium transition-colors hover:border-primary focus:outline-none focus:ring-2 focus:ring-primary/40"
           title="Leave any time — no penalty."
         >
           Gotta go! 👋
         </button>
       </div>
 
-      <Meter companion={companion} progress={progress} done={done} />
+      {/* Showcase: the illustrated bust on its teal stage, name + mood + meter. */}
+      <div className="flex flex-col gap-5 rounded-xl border border-border bg-surface p-5 shadow-soft sm:flex-row sm:items-center">
+        <div className="sm:w-56 sm:shrink-0">
+          <CharacterBust
+            companion={companion}
+            progress={progress}
+            done={done}
+            accessory={accessory}
+          />
+        </div>
+        <div className="flex flex-1 flex-col gap-3">
+          <div className="flex flex-col gap-0.5">
+            <span className="font-heading text-xl font-bold">
+              {companion.name}
+            </span>
+            <span className="text-sm text-text-muted">{mood.caption}</span>
+          </div>
+          <Meter companion={companion} progress={progress} done={done} />
+        </div>
+      </div>
 
       {/* The problem in play, for reference */}
       <details className="rounded-lg border border-border bg-surface p-4">
@@ -259,13 +250,13 @@ export default function TeachbackView({
             <div
               className={
                 msg.role === "user"
-                  ? "max-w-[85%] rounded-lg rounded-br-sm bg-primary px-4 py-2 text-primary-contrast"
-                  : "max-w-[85%] rounded-lg rounded-bl-sm bg-bg px-4 py-2 text-text"
+                  ? "max-w-[85%] rounded-lg rounded-br-sm bg-primary px-4 py-2 text-primary-contrast shadow-soft"
+                  : "max-w-[85%] rounded-lg rounded-bl-sm bg-surface-tint px-4 py-2 text-text"
               }
             >
               {msg.role === "assistant" && (
                 <span className="mb-0.5 block text-xs font-semibold text-text-muted">
-                  {companion.emoji} {companion.name}
+                  {companion.name}
                 </span>
               )}
               <MathText>{msg.content}</MathText>
@@ -274,7 +265,7 @@ export default function TeachbackView({
         ))}
         {loading && (
           <div className="flex justify-start">
-            <div className="rounded-lg rounded-bl-sm bg-bg px-4 py-2 text-text-muted">
+            <div className="rounded-lg rounded-bl-sm bg-surface-tint px-4 py-2 text-text-muted">
               {companion.name} is thinking…
             </div>
           </div>
@@ -289,11 +280,13 @@ export default function TeachbackView({
 
       {done && (
         <div className="rounded-lg border border-success/40 bg-success/10 p-4 text-center">
-          <p className="font-semibold text-success">{companion.doneBanner}</p>
+          <p className="font-heading font-semibold text-success">
+            {companion.doneBanner}
+          </p>
           <button
             type="button"
             onClick={onExit}
-            className="mt-3 rounded-md bg-primary px-5 py-2 font-medium text-primary-contrast transition-opacity hover:opacity-90 focus:outline-none focus:ring-2 focus:ring-primary/40"
+            className="press mt-3 rounded-md bg-primary px-5 py-2 font-medium text-primary-contrast transition-colors hover:bg-primary-hover focus:outline-none focus:ring-2 focus:ring-primary/40"
           >
             Back to problems
           </button>
@@ -318,7 +311,7 @@ export default function TeachbackView({
         <button
           type="submit"
           disabled={loading || !input.trim()}
-          className="rounded-md bg-primary px-5 py-3 font-medium text-primary-contrast transition-opacity hover:opacity-90 focus:outline-none focus:ring-2 focus:ring-primary/40 disabled:cursor-not-allowed disabled:opacity-50"
+          className="press rounded-md bg-primary px-5 py-3 font-medium text-primary-contrast transition-colors hover:bg-primary-hover focus:outline-none focus:ring-2 focus:ring-primary/40 disabled:cursor-not-allowed disabled:opacity-50"
         >
           {companion.sendLabel}
         </button>

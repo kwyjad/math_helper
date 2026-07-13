@@ -184,7 +184,7 @@ export default function TutorView({
         <button
           type="button"
           onClick={onBack}
-          className="rounded-md border border-border px-3 py-2 text-sm font-medium transition-colors hover:border-primary focus:outline-none focus:ring-2 focus:ring-primary/40"
+          className="press rounded-md border border-border bg-surface px-3 py-2 text-sm font-medium transition-colors hover:border-primary focus:outline-none focus:ring-2 focus:ring-primary/40"
         >
           ← Back to list
         </button>
@@ -193,7 +193,7 @@ export default function TutorView({
             <button
               type="button"
               onClick={onTeach}
-              className="rounded-md border border-accent px-3 py-2 text-sm font-medium text-accent transition-colors hover:bg-accent/10 focus:outline-none focus:ring-2 focus:ring-accent/40"
+              className="press rounded-md border border-primary bg-accent-soft/50 px-3 py-2 text-sm font-medium text-primary transition-colors hover:bg-accent-soft focus:outline-none focus:ring-2 focus:ring-primary/40"
             >
               {companion.emoji} {companion.actionVerb} {companion.name}
             </button>
@@ -207,7 +207,7 @@ export default function TutorView({
       {/* Optional teach-back invitation after a correct answer. Easy to decline;
           declining or leaving never blocks anything. */}
       {companion && showInvite && onTeach && (
-        <div className="flex flex-col gap-3 rounded-lg border border-accent/40 bg-accent/5 p-4 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex flex-col gap-3 rounded-lg border border-primary/30 bg-accent-soft/40 p-4 shadow-soft sm:flex-row sm:items-center sm:justify-between">
           <p className="font-medium">{companion.invite}</p>
           <div className="flex gap-2">
             <button
@@ -216,14 +216,14 @@ export default function TutorView({
                 setShowInvite(false);
                 onTeach();
               }}
-              className="rounded-md bg-accent px-4 py-2 font-medium text-primary-contrast transition-opacity hover:opacity-90 focus:outline-none focus:ring-2 focus:ring-accent/40"
+              className="press rounded-md bg-primary px-4 py-2 font-medium text-primary-contrast transition-colors hover:bg-primary-hover focus:outline-none focus:ring-2 focus:ring-primary/40"
             >
               Let&apos;s go
             </button>
             <button
               type="button"
               onClick={() => setShowInvite(false)}
-              className="rounded-md border border-border px-4 py-2 font-medium transition-colors hover:border-primary focus:outline-none focus:ring-2 focus:ring-primary/40"
+              className="press rounded-md border border-border bg-surface px-4 py-2 font-medium transition-colors hover:border-primary focus:outline-none focus:ring-2 focus:ring-primary/40"
             >
               Not now
             </button>
@@ -232,7 +232,7 @@ export default function TutorView({
       )}
 
       {/* The problem being worked on */}
-      <div className="rounded-lg border border-border bg-surface p-4">
+      <div className="rounded-lg border border-border bg-surface p-4 shadow-soft">
         <div className="text-text">
           <MathText>{problem.text}</MathText>
         </div>
@@ -297,8 +297,8 @@ export default function TutorView({
             <div
               className={
                 msg.role === "user"
-                  ? "max-w-[85%] rounded-lg rounded-br-sm bg-primary px-4 py-2 text-primary-contrast"
-                  : "max-w-[85%] rounded-lg rounded-bl-sm bg-bg px-4 py-2 text-text"
+                  ? "max-w-[85%] rounded-lg rounded-br-sm bg-primary px-4 py-2 text-primary-contrast shadow-soft"
+                  : "max-w-[85%] rounded-lg rounded-bl-sm bg-surface-tint px-4 py-2 text-text"
               }
             >
               <MathText>{msg.content}</MathText>
@@ -307,7 +307,7 @@ export default function TutorView({
         ))}
         {loading && (
           <div className="flex justify-start">
-            <div className="rounded-lg rounded-bl-sm bg-bg px-4 py-2 text-text-muted">
+            <div className="rounded-lg rounded-bl-sm bg-surface-tint px-4 py-2 text-text-muted">
               Thinking…
             </div>
           </div>
@@ -337,7 +337,7 @@ export default function TutorView({
         <button
           type="submit"
           disabled={loading || !input.trim()}
-          className="rounded-md bg-primary px-5 py-3 font-medium text-primary-contrast transition-opacity hover:opacity-90 focus:outline-none focus:ring-2 focus:ring-primary/40 disabled:cursor-not-allowed disabled:opacity-50"
+          className="press rounded-md bg-primary px-5 py-3 font-medium text-primary-contrast transition-colors hover:bg-primary-hover focus:outline-none focus:ring-2 focus:ring-primary/40 disabled:cursor-not-allowed disabled:opacity-50"
         >
           Send
         </button>
@@ -346,7 +346,7 @@ export default function TutorView({
       {/* Submit an answer to be checked */}
       {isMultipleChoice ? (
         // Multiple choice: tap a letter — nicer on a phone than typing.
-        <div className="flex flex-col gap-2 rounded-lg border border-accent/40 bg-surface p-4">
+        <div className="flex flex-col gap-2 rounded-lg border border-primary/30 bg-surface p-4 shadow-soft">
           <span className="font-medium">Check your answer</span>
           <p className="text-sm text-text-muted">
             Tap the letter you think is right — the tutor will tell you if
@@ -361,7 +361,7 @@ export default function TutorView({
                   type="button"
                   onClick={() => submitLetter(letter)}
                   disabled={loading}
-                  className="min-w-12 rounded-md border border-accent px-4 py-3 text-lg font-semibold text-accent transition-colors hover:bg-accent/10 focus:outline-none focus:ring-2 focus:ring-accent/40 disabled:cursor-not-allowed disabled:opacity-50"
+                  className="press min-w-12 rounded-md border border-primary bg-accent-soft/40 px-4 py-3 text-lg font-semibold text-primary transition-colors hover:bg-accent-soft focus:outline-none focus:ring-2 focus:ring-primary/40 disabled:cursor-not-allowed disabled:opacity-50"
                 >
                   {letter}
                 </button>
@@ -372,7 +372,7 @@ export default function TutorView({
       ) : showAnswer ? (
         <form
           onSubmit={submitAnswer}
-          className="flex flex-col gap-3 rounded-lg border border-accent/40 bg-surface p-4"
+          className="flex flex-col gap-3 rounded-lg border border-primary/30 bg-surface p-4 shadow-soft"
         >
           <label htmlFor="answer-input" className="font-medium">
             Submit an answer to check
@@ -386,12 +386,12 @@ export default function TutorView({
               placeholder="Type your answer…"
               disabled={loading}
               autoFocus
-              className="w-full rounded-md border border-border bg-bg px-4 py-3 outline-none focus:border-accent focus:ring-2 focus:ring-accent/30 disabled:opacity-60"
+              className="w-full rounded-md border border-border bg-bg px-4 py-3 outline-none focus:border-primary focus:ring-2 focus:ring-primary/30 disabled:opacity-60"
             />
             <button
               type="submit"
               disabled={loading || (!answer.trim() && !answerFile)}
-              className="rounded-md bg-accent px-5 py-3 font-medium text-primary-contrast transition-opacity hover:opacity-90 focus:outline-none focus:ring-2 focus:ring-accent/40 disabled:cursor-not-allowed disabled:opacity-50"
+              className="press rounded-md bg-primary px-5 py-3 font-medium text-primary-contrast transition-colors hover:bg-primary-hover focus:outline-none focus:ring-2 focus:ring-primary/40 disabled:cursor-not-allowed disabled:opacity-50"
             >
               Check it
             </button>
@@ -402,7 +402,7 @@ export default function TutorView({
                 clearAnswerFile();
               }}
               disabled={loading}
-              className="rounded-md border border-border px-4 py-3 font-medium transition-colors hover:border-primary disabled:opacity-50"
+              className="press rounded-md border border-border bg-surface px-4 py-3 font-medium transition-colors hover:border-primary disabled:opacity-50"
             >
               Cancel
             </button>
@@ -467,7 +467,7 @@ export default function TutorView({
         <button
           type="button"
           onClick={() => setShowAnswer(true)}
-          className="self-start rounded-md border border-accent px-4 py-2 font-medium text-accent transition-colors hover:bg-accent/10 focus:outline-none focus:ring-2 focus:ring-accent/40"
+          className="press self-start rounded-md border border-primary bg-accent-soft/40 px-4 py-2 font-medium text-primary transition-colors hover:bg-accent-soft focus:outline-none focus:ring-2 focus:ring-primary/40"
         >
           I have an answer to check
         </button>

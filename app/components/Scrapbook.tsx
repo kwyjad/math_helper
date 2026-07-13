@@ -39,7 +39,7 @@ export default function Scrapbook({
         <button
           type="button"
           onClick={onBack}
-          className="rounded-md border border-border px-3 py-2 text-sm font-medium transition-colors hover:border-primary focus:outline-none focus:ring-2 focus:ring-primary/40"
+          className="press rounded-md border border-border bg-surface px-3 py-2 text-sm font-medium transition-colors hover:border-primary focus:outline-none focus:ring-2 focus:ring-primary/40"
         >
           ← Back
         </button>
@@ -54,7 +54,7 @@ export default function Scrapbook({
       </header>
 
       {/* Wardrobe: pick from unlocked accessories */}
-      <div className="flex flex-col gap-3 rounded-lg border border-border bg-surface p-4">
+      <div className="flex flex-col gap-3 rounded-lg border border-border bg-surface p-4 shadow-soft">
         <div className="flex items-center justify-between">
           <h2 className="font-semibold">Wardrobe</h2>
           <span className="text-sm text-text-muted">
@@ -105,7 +105,7 @@ export default function Scrapbook({
 
       {/* Entries */}
       {ordered.length === 0 ? (
-        <p className="rounded-lg border border-border bg-surface p-4 text-text-muted">
+        <p className="rounded-lg border border-border bg-surface p-4 text-text-muted shadow-soft">
           No pages yet. Solve a problem, then teach it to your companion — your
           first success will land here.
         </p>
@@ -116,7 +116,7 @@ export default function Scrapbook({
             return (
               <li
                 key={i}
-                className="rounded-lg border border-border bg-surface p-4"
+                className="rounded-lg border border-border bg-surface p-4 shadow-soft"
               >
                 <div className="flex items-baseline justify-between gap-3">
                   <span className="text-sm font-semibold text-text-muted">

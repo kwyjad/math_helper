@@ -92,7 +92,7 @@ export default function UploadStep({
             chooser rather than jumping straight to the camera. */}
         <label
           htmlFor="photo-library"
-          className="flex cursor-pointer flex-col items-center justify-center gap-2 rounded-lg border-2 border-dashed border-border bg-surface px-4 py-10 text-center transition-colors hover:border-primary"
+          className="flex cursor-pointer flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed border-border bg-surface px-4 py-10 text-center shadow-soft transition-colors hover:border-primary hover:bg-surface-tint/40"
         >
           {preview ? (
             // eslint-disable-next-line @next/next/no-img-element
@@ -124,7 +124,7 @@ export default function UploadStep({
             browser simply falls back to the file picker, so nothing breaks. */}
         <label
           htmlFor="photo-camera"
-          className="flex cursor-pointer items-center justify-center gap-2 rounded-md border border-border bg-surface px-4 py-3 font-medium transition-colors hover:border-primary"
+          className="press flex cursor-pointer items-center justify-center gap-2 rounded-md border border-border bg-surface px-4 py-3 font-medium transition-colors hover:border-primary"
         >
           <span>📷 Take a photo</span>
           <input
@@ -183,7 +183,7 @@ export default function UploadStep({
             type="button"
             onClick={handleUpload}
             disabled={loading || !file}
-            className="w-full rounded-md bg-primary px-4 py-3 text-lg font-medium text-primary-contrast transition-opacity hover:opacity-90 focus:outline-none focus:ring-2 focus:ring-primary/40 disabled:cursor-not-allowed disabled:opacity-50"
+            className="press w-full rounded-md bg-primary px-4 py-3 text-lg font-medium text-primary-contrast shadow-soft transition-colors hover:bg-primary-hover focus:outline-none focus:ring-2 focus:ring-primary/40 disabled:cursor-not-allowed disabled:opacity-50"
           >
             {loading ? "Reading the page…" : "Transcribe problems"}
           </button>
@@ -192,7 +192,7 @@ export default function UploadStep({
               type="button"
               onClick={onCancel}
               disabled={loading}
-              className="w-full rounded-md border border-border bg-surface px-4 py-3 text-lg font-medium transition-colors hover:border-primary focus:outline-none focus:ring-2 focus:ring-primary/40 disabled:opacity-50 sm:w-auto"
+              className="press w-full rounded-md border border-border bg-surface px-4 py-3 text-lg font-medium transition-colors hover:border-primary focus:outline-none focus:ring-2 focus:ring-primary/40 disabled:opacity-50 sm:w-auto"
             >
               Cancel
             </button>

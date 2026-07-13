@@ -3,88 +3,125 @@
 
 /*
  * ---------------------------------------------------------------------------
- * Design tokens
+ * Design tokens — teal system
  * ---------------------------------------------------------------------------
  * All theming lives here. Components reference only the semantic Tailwind
  * utilities generated from these tokens (e.g. `bg-surface`, `text-muted`,
- * `border-border`) — never raw hex values or magic numbers.
+ * `border-border`, `bg-primary`) — never raw hex values or magic numbers.
  *
- * To re-skin the app later, edit the raw values in `:root` below. Dark mode
- * is intentionally NOT enabled yet, but the structure is ready: uncomment the
+ * Guiding principle: the character art is richly illustrated, so the UI stays
+ * quiet — a clean teal stage. Restrained color, generous radii, soft shadows.
+ *
+ * To re-skin the app later, edit the raw values in `:root` below. Dark mode is
+ * intentionally NOT enabled yet, but the structure is ready: uncomment the
  * `.dark` block and override the same variables.
  * ---------------------------------------------------------------------------
  */
 
 :root {
-  /* Colors */
-  --bg: #f6f7f9;
+  /* Colors — light */
+  --bg: #f7faf9;
   --surface: #ffffff;
-  --text: #1b1f27;
-  --text-muted: #5b6472;
-  --border: #e3e6eb;
-  --primary: #2f5bd7;
+  --surface-tint: #e9f6f3; /* soft teal card fill */
+  --text: #1e2a28;
+  --text-muted: #6b7b78;
+  --border: #dce7e4;
+  --primary: #12b3a6;
+  --primary-hover: #0e9488;
   --primary-contrast: #ffffff;
-  --accent: #6741d9;
-  --success: #2f9e44;
-  --error: #d93636;
+  --accent-soft: #c9efe9;
+  --success: #2fa96b;
+  --error: #e5533d;
 
-  /* Typography — one system sans stack for now */
-  --font-sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto,
-    Helvetica, Arial, sans-serif;
+  /*
+   * `accent` is kept as a semantic alias for the teal primary so the app reads
+   * as a single calm color system. Companion / teach-back affordances lean on
+   * fill-vs-outline and the soft tints for hierarchy rather than a second hue.
+   */
+  --accent: var(--primary);
+
+  /* Character bust background — a gentle teal wash. */
+  --bust-bg: radial-gradient(
+    120% 100% at 50% 8%,
+    #f0fbf9 0%,
+    var(--surface-tint) 70%,
+    #e2f2ee 100%
+  );
+
+  /* Typography — a rounded display face for headings, a clean body sans. Both
+     are injected as CSS variables by `next/font` in layout.tsx. */
+  --font-sans: var(--font-body), ui-sans-serif, system-ui, -apple-system,
+    "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  --font-heading: var(--font-display), var(--font-sans);
 }
 
 /*
  * Dark mode is NOT enabled in this version. When it is, override tokens here:
  *
  * .dark {
- *   --bg: #12141a;
- *   --surface: #1b1f27;
- *   --text: #f2f4f7;
- *   --text-muted: #9aa3b2;
- *   --border: #2c313b;
- *   --primary: #5b7cf0;
- *   --primary-contrast: #ffffff;
- *   --accent: #9775fa;
- *   --success: #51cf66;
- *   --error: #ff6b6b;
+ *   --bg: #0e1615;
+ *   --surface: #16211f;
+ *   --surface-tint: #1a2b28;
+ *   --text: #eaf3f1;
+ *   --text-muted: #94a6a2;
+ *   --border: #2a3936;
+ *   --primary: #2fd0c2;
+ *   --primary-hover: #4fdccf;
+ *   --primary-contrast: #06201d;
+ *   --accent-soft: #123c37;
+ *   --success: #4fd08a;
+ *   --error: #ff6f58;
  * }
  */
 
 /*
  * Map raw tokens onto Tailwind's theme namespace. `@theme inline` lets the
- * generated utilities (bg-*, text-*, border-*, etc.) resolve through the CSS
- * variables above, so a `.dark` override flows through automatically.
+ * generated utilities (bg-*, text-*, border-*, rounded-*, shadow-*, etc.)
+ * resolve through the CSS variables above, so a `.dark` override flows through
+ * automatically.
  */
 @theme inline {
   --color-bg: var(--bg);
   --color-surface: var(--surface);
+  --color-surface-tint: var(--surface-tint);
   --color-text: var(--text);
   --color-text-muted: var(--text-muted);
   --color-border: var(--border);
   --color-primary: var(--primary);
+  --color-primary-hover: var(--primary-hover);
   --color-primary-contrast: var(--primary-contrast);
   --color-accent: var(--accent);
+  --color-accent-soft: var(--accent-soft);
   --color-success: var(--success);
   --color-error: var(--error);
 
   --font-sans: var(--font-sans);
+  --font-heading: var(--font-heading);
 
-  /* Type scale */
+  /* Type scale — modest, mobile-first. */
   --text-xs: 0.8125rem;
   --text-sm: 0.9375rem;
   --text-base: 1rem;
   --text-lg: 1.1875rem;
   --text-xl: 1.4375rem;
   --text-2xl: 1.75rem;
+  --text-3xl: 2.125rem;
 
-  /* Spacing scale (base unit; Tailwind multiplies this) */
+  /* Spacing base unit (Tailwind multiplies this). */
   --spacing: 0.25rem;
 
-  /* Radius scale */
-  --radius-sm: 0.375rem;
-  --radius-md: 0.625rem;
+  /* Radius scale — generous: buttons ~12px, cards ~16px, heroes ~24px. */
+  --radius-sm: 0.5rem;
+  --radius-md: 0.75rem;
   --radius-lg: 1rem;
+  --radius-xl: 1.5rem;
   --radius-full: 9999px;
+
+  /* Soft shadow tokens. */
+  --shadow-soft: 0 1px 2px rgba(30, 42, 40, 0.04),
+    0 4px 16px rgba(18, 179, 166, 0.06);
+  --shadow-lifted: 0 2px 6px rgba(30, 42, 40, 0.06),
+    0 12px 32px rgba(18, 179, 166, 0.12);
 }
 
 html {
@@ -99,9 +136,68 @@ body {
   text-rendering: optimizeLegibility;
 }
 
+/* Rounded, friendly display face for headings. */
+h1,
+h2,
+h3 {
+  font-family: var(--font-heading);
+  letter-spacing: -0.01em;
+}
+
 /* Give KaTeX display math room to scroll horizontally on small screens. */
 .katex-display {
   overflow-x: auto;
   overflow-y: hidden;
   padding-block: 0.25rem;
+}
+
+/*
+ * Motion — tasteful micro-interactions. Every animation here is disabled under
+ * `prefers-reduced-motion`, and components that animate check it too.
+ */
+
+/* Pressable feedback for buttons: a subtle scale-down on active. */
+@media (prefers-reduced-motion: no-preference) {
+  .press {
+    transition: transform 120ms ease, box-shadow 120ms ease,
+      background-color 120ms ease, border-color 120ms ease, opacity 120ms ease;
+  }
+  .press:active {
+    transform: scale(0.97);
+  }
+}
+
+/* Character cross-fade (used by CharacterBust). */
+@keyframes bust-fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+/* Celebration flourish on a true `done`. */
+@keyframes bust-pop {
+  0% {
+    transform: scale(1);
+  }
+  35% {
+    transform: scale(1.06);
+  }
+  70% {
+    transform: scale(0.98);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .bust-fade {
+    animation: bust-fade-in 250ms ease forwards;
+  }
+  .bust-pop {
+    animation: bust-pop 600ms ease;
+  }
 }
