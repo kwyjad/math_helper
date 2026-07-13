@@ -70,7 +70,9 @@ Open [http://localhost:3000](http://localhost:3000).
    - **Value:** your Gemini API key
    - **Environments:** Production (and Preview/Development if you want previews
      to work)
-3. Deploy. Next.js auto-detects the framework; no extra build config is needed.
+3. Deploy. The framework preset is pinned to Next.js via `vercel.json`
+   (`"framework": "nextjs"`), so Vercel uses the Next.js build output (`.next`)
+   regardless of the project's auto-detected preset — no manual settings needed.
 
 The API routes run as serverless functions and are kept comfortably under the
 Hobby timeout (tutor replies are capped short and extraction runs at low
