@@ -70,7 +70,7 @@ export default function AgeStep({
           Welcome to Dijits and Ijits
         </h1>
         <p className="text-text-muted">
-          Work through your homework one problem at a time — with a little help.
+          Work through your math homework one problem at a time — with a little help.
         </p>
       </div>
 
